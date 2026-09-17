@@ -1,0 +1,202 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="tr">
+
+<xacro:property name="chassis_x" value="0.66"/>
+<xacro:property name="chassis_y" value="0.66"/>
+<xacro:property name="chassis_z" value="0.18"/>
+
+<xacro:property name="wheel_radius" value="0.075"/>
+<xacro:property name="wheel_width" value="0.04"/>
+
+<xacro:property name="wheel_x" value="0.25"/>
+<xacro:property name="wheel_y" value="0.25"/>
+
+<link name="base_link">
+
+<visual>
+<geometry>
+<box size="${chassis_x} ${chassis_y} ${chassis_z}"/>
+</geometry>
+<material name="black">
+<color rgba="0.08 0.08 0.08 1"/>
+</material>
+</visual>
+
+<collision>
+<geometry>
+<box size="${chassis_x} ${chassis_y} ${chassis_z}"/>
+</geometry>
+</collision>
+
+<inertial>
+<mass value="35.0"/>
+<origin xyz="0 0 0"/>
+<inertia
+ixx="1.0"
+iyy="1.0"
+izz="1.0"
+ixy="0"
+ixz="0"
+iyz="0"/>
+</inertial>
+
+</link>
+
+<xacro:macro name="wheel" params="name x y">
+
+<link name="${name}">
+
+<visual>
+<origin xyz="0 0 0" rpy="1.5708 0 0"/>
+<geometry>
+<cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+</geometry>
+<material name="wheel_black">
+<color rgba="0.03 0.03 0.03 1"/>
+</material>
+</visual>
+
+<collision>
+<origin xyz="0 0 0" rpy="1.5708 0 0"/>
+<geometry>
+<cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+</geometry>
+</collision>
+
+<inertial>
+<mass value="1.0"/>
+<origin xyz="0 0 0"/>
+<inertia
+ixx="0.01"
+iyy="0.01"
+izz="0.01"
+ixy="0"
+ixz="0"
+iyz="0"/>
+</inertial>
+
+</link>
+
+<joint name="${name}_joint" type="continuous">
+
+<parent link="base_link"/>
+<child link="${name}"/>
+
+<origin xyz="${x} ${y} -0.165" rpy="0 0 0"/>
+
+<axis xyz="0 1 0"/>
+
+<limit effort="100" velocity="30"/>
+
+</joint>
+
+</xacro:macro>
+
+<xacro:wheel
+name="front_left_wheel"
+x="${wheel_x}"
+y="${wheel_y}"/>
+
+<xacro:wheel
+name="front_right_wheel"
+x="${wheel_x}"
+y="-${wheel_y}"/>
+
+<xacro:wheel
+name="rear_left_wheel"
+x="-${wheel_x}"
+y="${wheel_y}"/>
+
+<xacro:wheel
+name="rear_right_wheel"
+x="-${wheel_x}"
+y="-${wheel_y}"/>
+
+<ros2_control name="TRSystem" type="system">
+
+<hardware>
+<plugin>gz_ros2_control/GazeboSimSystem</plugin>
+</hardware>
+
+<joint name="front_left_wheel_joint">
+<command_interface name="velocity"/>
+<state_interface name="position"/>
+<state_interface name="velocity"/>
+</joint>
+
+<joint name="front_right_wheel_joint">
+<command_interface name="velocity"/>
+<state_interface name="position"/>
+<state_interface name="velocity"/>
+</joint>
+
+<joint name="rear_left_wheel_joint">
+<command_interface name="velocity"/>
+<state_interface name="position"/>
+<state_interface name="velocity"/>
+</joint>
+
+<joint name="rear_right_wheel_joint">
+<command_interface name="velocity"/>
+<state_interface name="position"/>
+<state_interface name="velocity"/>
+</joint>
+
+</ros2_control>
+
+<gazebo>
+
+<plugin
+filename="libgz_ros2_control-system.so"
+name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+
+<parameters>
+$(find robocon2027_description)/config/tr_controllers.yaml
+</parameters>
+
+</plugin>
+
+</gazebo>
+
+<gazebo reference="base_link">
+
+<sensor name="lidar" type="gpu_lidar">
+<pose>0 0 0.20 0 0 0</pose>
+<topic>/scan</topic>
+<update_rate>10</update_rate>
+
+<lidar>
+
+<scan>
+
+<horizontal>
+<samples>720</samples>
+<resolution>1</resolution>
+<min_angle>-3.14159265</min_angle>
+<max_angle>3.14159265</max_angle>
+</horizontal>
+
+<vertical>
+<samples>1</samples>
+<resolution>1</resolution>
+<min_angle>0</min_angle>
+<max_angle>0</max_angle>
+</vertical>
+
+</scan>
+
+<range>
+<min>0.12</min>
+<max>12.0</max>
+<resolution>0.01</resolution>
+</range>
+
+</lidar>
+
+<visualize>true</visualize>
+
+</sensor>
+
+</gazebo>
+</robot>
