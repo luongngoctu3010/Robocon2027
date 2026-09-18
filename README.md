@@ -2,17 +2,8 @@
 cd ~
 unzip ~/Robocon2027-main.zip
 mv ~/Robocon2027-main ~/robocon2027_gazebo
-
-Nếu thư mục ~/robocon2027_gazebo đã tồn tại thì không chạy mv, mà kiểm tra:
-
-ls ~/robocon2027_gazebo
-
-Bạn cần thấy kiểu:
-
-src/
-scripts/
-backup/
-README.md
+Nếu thư mục ~/Robocon2027_main đã tồn tại thì không chạy mv, mà kiểm tra:
+ls ~/robocon2027_main
 1. Build ROS 2 package
 
 Mở Terminal:
