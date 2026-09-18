@@ -1,0 +1,72 @@
+[0.011s] Invoking command in '/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/lyrical DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/luongngoctu/robocon2027_gazebo/src/robocon2027_description -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/luongngoctu/robocon2027_gazebo/install/robocon2027_description
+[0.040s] [0mCMake Deprecation Warning at CMakeLists.txt:1 (cmake_minimum_required):
+[0.040s]   Compatibility with CMake < 3.10 will be removed from a future version of
+[0.040s]   CMake.
+[0.040s] 
+[0.041s]   Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+[0.041s]   to tell CMake that the project requires at least <min> but has been updated
+[0.041s]   to work with policies introduced by <max> or earlier.
+[0.041s] 
+[0.041s] [0m
+[0.133s] -- The C compiler identification is GNU 15.2.0
+[0.236s] -- The CXX compiler identification is GNU 15.2.0
+[0.244s] -- Detecting C compiler ABI info
+[0.321s] -- Detecting C compiler ABI info - done
+[0.331s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.331s] -- Detecting C compile features
+[0.332s] -- Detecting C compile features - done
+[0.346s] -- Detecting CXX compiler ABI info
+[0.412s] -- Detecting CXX compiler ABI info - done
+[0.424s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.424s] -- Detecting CXX compile features
+[0.425s] -- Detecting CXX compile features - done
+[0.440s] -- Found ament_cmake: 2.8.8 (/opt/ros/lyrical/share/ament_cmake/cmake)
+[0.691s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[0.738s] -- Found xacro: 2.1.1 (/opt/ros/lyrical/share/xacro/cmake)
+[0.742s] -- Found robot_state_publisher: 3.5.5 (/opt/ros/lyrical/share/robot_state_publisher/cmake)
+[0.793s] -- Found rosidl_generator_c: 5.2.1 (/opt/ros/lyrical/share/rosidl_generator_c/cmake)
+[0.802s] -- Found rosidl_generator_cpp: 5.2.1 (/opt/ros/lyrical/share/rosidl_generator_cpp/cmake)
+[0.820s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.833s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.905s] -- Found rmw_implementation_cmake: 7.10.1 (/opt/ros/lyrical/share/rmw_implementation_cmake/cmake)
+[0.908s] -- Found rmw_fastrtps_cpp: 9.4.9 (/opt/ros/lyrical/share/rmw_fastrtps_cpp/cmake)
+[0.940s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[1.235s] -- Configuring done (1.2s)
+[1.241s] -- Generating done (0.0s)
+[1.267s] -- Build files have been written to: /home/luongngoctu/robocon2027_gazebo/build/robocon2027_description
+[1.273s] Invoked command in '/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/lyrical DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake /home/luongngoctu/robocon2027_gazebo/src/robocon2027_description -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/luongngoctu/robocon2027_gazebo/install/robocon2027_description
+[1.273s] Invoking command in '/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/lyrical DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/luongngoctu/robocon2027_gazebo/build/robocon2027_description -- -j12 -l12
+[1.309s] Invoked command in '/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/lyrical DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/luongngoctu/robocon2027_gazebo/build/robocon2027_description -- -j12 -l12
+[1.316s] Invoking command in '/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/lyrical DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/luongngoctu/robocon2027_gazebo/build/robocon2027_description
+[1.322s] -- Install configuration: ""
+[1.323s] -- Execute custom install script
+[1.323s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/meshes/field/cylinder.stl
+[1.331s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/meshes/field/field.stl
+[1.340s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/meshes/field/tower.stl
+[1.349s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/meshes/visual/robocon2027.glb
+[1.357s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/urdf/tr.xacro
+[1.365s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/worlds/robocon2027.sdf
+[1.373s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/worlds/robocon2027_backup_01.sdf
+[1.380s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/worlds/test_glb.sdf
+[1.388s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/launch/__pycache__/nav2_launch.cpython-314.pyc
+[1.394s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/launch/nav2_launch.py
+[1.400s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/config/nav2_params.yaml
+[1.406s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/config/tr_controllers.yaml
+[1.414s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/ament_index/resource_index/package_run_dependencies/robocon2027_description
+[1.422s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/ament_index/resource_index/parent_prefix_path/robocon2027_description
+[1.429s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/environment/ament_prefix_path.sh
+[1.435s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/environment/ament_prefix_path.dsv
+[1.443s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/environment/path.sh
+[1.449s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/environment/path.dsv
+[1.457s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/local_setup.bash
+[1.463s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/local_setup.fish
+[1.471s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/local_setup.sh
+[1.479s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/local_setup.zsh
+[1.487s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/local_setup.dsv
+[1.494s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/package.dsv
+[1.503s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/ament_index/resource_index/packages/robocon2027_description
+[1.512s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/cmake/robocon2027_descriptionConfig.cmake
+[1.520s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/cmake/robocon2027_descriptionConfig-version.cmake
+[1.528s] -- Symlinking: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/package.xml
+[1.536s] -- Installing: /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/lib/robocon2027_description/mecanum_controller
+[1.538s] Invoked command in '/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/lyrical DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/luongngoctu/robocon2027_gazebo/build/robocon2027_description

@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

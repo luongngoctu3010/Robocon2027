@@ -1,0 +1,1 @@
+/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description/ament_cmake_core/robocon2027_descriptionConfig.cmake

@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_files("/home/luongngoctu/robocon2027_gazebo/src/robocon2027_description" FILES "/opt/ros/lyrical/share/ament_cmake_core/cmake/environment_hooks/environment/ament_prefix_path.sh" "DESTINATION" "share/robocon2027_description/environment")

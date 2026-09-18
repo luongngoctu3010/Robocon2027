@@ -1,0 +1,162 @@
+{
+	"abstract" : true,
+	"artifacts" : 
+	[
+		{
+			"path" : "/usr/lib/x86_64-linux-gnu/libconsole_bridge.so.1.0"
+		}
+	],
+	"backtrace" : 21,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"include",
+			"find_package"
+		],
+		"files" : 
+		[
+			"/usr/lib/x86_64-linux-gnu/console_bridge/cmake/console_bridge-targets.cmake",
+			"/usr/lib/x86_64-linux-gnu/console_bridge/cmake/console_bridge-config.cmake",
+			"/opt/ros/lyrical/share/class_loader/cmake/ament_cmake_export_dependencies-extras.cmake",
+			"/opt/ros/lyrical/share/class_loader/cmake/class_loaderConfig.cmake",
+			"/opt/ros/lyrical/share/rclcpp_components/cmake/ament_cmake_export_dependencies-extras.cmake",
+			"/opt/ros/lyrical/share/rclcpp_components/cmake/rclcpp_componentsConfig.cmake",
+			"/opt/ros/lyrical/share/tf2_ros/cmake/ament_cmake_export_dependencies-extras.cmake",
+			"/opt/ros/lyrical/share/tf2_ros/cmake/tf2_rosConfig.cmake",
+			"/opt/ros/lyrical/share/robot_state_publisher/cmake/ament_cmake_export_dependencies-extras.cmake",
+			"/opt/ros/lyrical/share/robot_state_publisher/cmake/robot_state_publisherConfig.cmake",
+			"CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 10
+			},
+			{
+				"command" : 2,
+				"file" : 10,
+				"line" : 6,
+				"parent" : 0
+			},
+			{
+				"file" : 9,
+				"parent" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 9,
+				"line" : 41,
+				"parent" : 2
+			},
+			{
+				"file" : 8,
+				"parent" : 3
+			},
+			{
+				"command" : 2,
+				"file" : 8,
+				"line" : 21,
+				"parent" : 4
+			},
+			{
+				"file" : 7,
+				"parent" : 5
+			},
+			{
+				"command" : 1,
+				"file" : 7,
+				"line" : 41,
+				"parent" : 6
+			},
+			{
+				"file" : 6,
+				"parent" : 7
+			},
+			{
+				"command" : 2,
+				"file" : 6,
+				"line" : 21,
+				"parent" : 8
+			},
+			{
+				"file" : 5,
+				"parent" : 9
+			},
+			{
+				"command" : 1,
+				"file" : 5,
+				"line" : 41,
+				"parent" : 10
+			},
+			{
+				"file" : 4,
+				"parent" : 11
+			},
+			{
+				"command" : 2,
+				"file" : 4,
+				"line" : 21,
+				"parent" : 12
+			},
+			{
+				"file" : 3,
+				"parent" : 13
+			},
+			{
+				"command" : 1,
+				"file" : 3,
+				"line" : 41,
+				"parent" : 14
+			},
+			{
+				"file" : 2,
+				"parent" : 15
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 21,
+				"parent" : 16
+			},
+			{
+				"file" : 1,
+				"parent" : 17
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 27,
+				"parent" : 18
+			},
+			{
+				"file" : 0,
+				"parent" : 19
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 69,
+				"parent" : 20
+			}
+		]
+	},
+	"codemodelVersion" : 
+	{
+		"major" : 2,
+		"minor" : 9
+	},
+	"id" : "console_bridge::console_bridge::@6890427a1f51a3e7e1df",
+	"imported" : true,
+	"local" : true,
+	"name" : "console_bridge::console_bridge",
+	"nameOnDisk" : "libconsole_bridge.so.1.0",
+	"paths" : 
+	{
+		"build" : ".",
+		"source" : "."
+	},
+	"sources" : [],
+	"type" : "SHARED_LIBRARY"
+}

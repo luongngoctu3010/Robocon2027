@@ -1,0 +1,5 @@
+source;share/robocon2027_description/local_setup.bash
+source;share/robocon2027_description/local_setup.dsv
+source;share/robocon2027_description/local_setup.fish
+source;share/robocon2027_description/local_setup.sh
+source;share/robocon2027_description/local_setup.zsh

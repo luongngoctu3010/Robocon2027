@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_files("/home/luongngoctu/robocon2027_gazebo/src/robocon2027_description" FILES "/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description/ament_cmake_environment_hooks/local_setup.bash" "DESTINATION" "share/robocon2027_description")
