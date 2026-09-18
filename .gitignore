@@ -2,3 +2,7 @@ build/
 install/
 log/
 __pycache__/
+
+# Generated frame files
+frames_*.gv
+frames_*.pdf
