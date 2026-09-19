@@ -33,3 +33,6 @@ __pycache__/
 *.bag
 *.db3
 rosbag2_*
+
+# LibreOffice lock files
+.~lock.*#
