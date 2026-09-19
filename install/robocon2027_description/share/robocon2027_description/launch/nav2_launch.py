@@ -1,1 +1,0 @@
-/home/luongngoctu/robocon2027_gazebo/src/robocon2027_description/launch/nav2_launch.py
