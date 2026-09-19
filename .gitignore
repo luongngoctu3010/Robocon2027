@@ -1,0 +1,27 @@
+# ROS 2 generated files
+build/
+install/
+log/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Gazebo / ROS generated data
+*.db
+*.log
+*.bag
+*.db3
+rosbag2_*

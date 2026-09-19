@@ -6,9 +6,9 @@
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/worlds/robocon2027.sdf
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/worlds/robocon2027_backup_01.sdf
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/worlds/test_glb.sdf
-/home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/launch/__pycache__/nav2_launch.cpython-314.pyc
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/launch/nav2_launch.py
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/config/nav2_params.yaml
+/home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/config/slam_params.yaml
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/robocon2027_description/config/tr_controllers.yaml
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/ament_index/resource_index/package_run_dependencies/robocon2027_description
 /home/luongngoctu/robocon2027_gazebo/install/robocon2027_description/share/ament_index/resource_index/parent_prefix_path/robocon2027_description
