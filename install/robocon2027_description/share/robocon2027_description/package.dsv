@@ -1,6 +1,1 @@
-source;share/robocon2027_description/hook/cmake_prefix_path.dsv
-source;share/robocon2027_description/hook/cmake_prefix_path.sh
-source;share/robocon2027_description/local_setup.bash
-source;share/robocon2027_description/local_setup.dsv
-source;share/robocon2027_description/local_setup.sh
-source;share/robocon2027_description/local_setup.zsh
+/home/luongngoctu/robocon2027_gazebo/build/robocon2027_description/ament_cmake_environment_hooks/package.dsv
