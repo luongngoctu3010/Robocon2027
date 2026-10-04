@@ -71,29 +71,13 @@
 
       </link>
     </model>
-
-    <!-- ================= PHYSICS FLOOR ================= -->
-    <model name="physics_floor">
-      <static>true</static>
-      <pose>0 0 -0.01 0 0 0</pose>
-      <link name="floor_link">
-        <collision name="floor_collision">
-          <geometry>
-            <box>
-              <size>11.05 11.05 0.02</size>
-            </box>
-          </geometry>
-        </collision>
-      </link>
-    </model>
-
     <!-- ================= BR ROBOT ================= -->
 
-  <include>
-    <uri>model://br</uri>
-    <name>BR</name>
-    <pose>-4 -4 0.5 0 0 0</pose>
-  </include>
+    <include>
+      <uri>model://br</uri>
+      <name>BR</name>
+      <pose>0 0 0.50 0 0 0</pose>
+    </include>
 
   <!-- ================= BR GPU LIDAR ================= -->
 

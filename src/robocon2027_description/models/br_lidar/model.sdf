@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+
+  <model name="br_lidar">
+
+    <static>true</static>
+
+    <link name="lidar_link">
+
+      <!-- Visible LiDAR -->
+      <visual name="lidar_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.07</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+      </visual>
+
+      <!-- CPU LiDAR -->
+      <sensor name="lidar_sensor" type="ray">
+
+        <pose>0 0 0 0 0 0</pose>
+
+        <update_rate>10</update_rate>
+
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>720</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159265359</min_angle>
+              <max_angle>3.14159265359</max_angle>
+            </horizontal>
+          </scan>
+
+          <range>
+            <min>0.12</min>
+            <max>12.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </ray>
+
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+
+        <topic>/scan</topic>
+
+      </sensor>
+
+    </link>
+
+  </model>
+
+</sdf>
