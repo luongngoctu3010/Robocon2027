@@ -27,42 +27,6 @@ def generate_launch_description():
         # ============================================================
 
         Node(
-            package='nav2_map_server',
-            executable='map_server',
-            name='keepout_filter_mask_server',
-            output='screen',
-            parameters=[{
-                'use_sim_time': True,
-                'yaml_filename': keepout_yaml,
-                'topic_name': '/keepout_filter_mask',
-                'frame_id': 'map',
-            }],
-        ),
-
-        # ============================================================
-        # KEEP-OUT FILTER INFO
-        # ============================================================
-
-        Node(
-            package='nav2_map_server',
-            executable='costmap_filter_info_server',
-            name='keepout_costmap_filter_info_server',
-            output='screen',
-            parameters=[{
-                'use_sim_time': True,
-                'type': 0,
-                'filter_info_topic': '/keepout_costmap_filter_info',
-                'mask_topic': '/keepout_filter_mask',
-                'base': 0.0,
-                'multiplier': 1.0,
-            }],
-        ),
-
-        # ============================================================
-        # GLOBAL COSTMAP
-        # ============================================================
-
-        Node(
             package='nav2_controller',
             executable='controller_server',
             name='controller_server',
@@ -123,8 +87,6 @@ def generate_launch_description():
                 'autostart': True,
 
                 'node_names': [
-                    'keepout_filter_mask_server',
-                    'keepout_costmap_filter_info_server',
                     'global_costmap/global_costmap',
                     'local_costmap/local_costmap',
                     'controller_server',
