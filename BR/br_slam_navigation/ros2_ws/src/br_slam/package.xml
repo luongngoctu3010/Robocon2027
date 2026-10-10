@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>br_slam</name>
+  <version>0.0.1</version>
+
+  <description>BR Robocon 2027 SLAM using SLAM Toolbox</description>
+
+  <maintainer email="robocon@example.com">Robocon 2027</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>

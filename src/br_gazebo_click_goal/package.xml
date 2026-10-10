@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+
+  <name>br_gazebo_click_goal</name>
+  <version>0.0.1</version>
+
+  <description>
+    Gazebo GUI click goal plugin for BR Robocon 2027.
+  </description>
+
+  <maintainer email="luongngoctu@example.com">Luong Ngoc Tu</maintainer>
+
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>gz-gui</depend>
+  <depend>gz-transport</depend>
+  <depend>gz-msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>
