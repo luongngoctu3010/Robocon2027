@@ -1,0 +1,251 @@
+amcl:
+  ros__parameters:
+    use_sim_time: true
+
+map_server:
+  ros__parameters:
+    use_sim_time: true
+
+planner_server:
+  ros__parameters:
+    use_sim_time: true
+
+    planner_plugins: ["GridBased"]
+
+    GridBased:
+      plugin: "nav2_navfn_planner::NavfnPlanner"
+      tolerance: 0.3
+      use_astar: false
+      allow_unknown: true
+
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+
+    controller_frequency: 10.0
+
+    controller_plugins: ["FollowPath"]
+
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+
+      min_vel_x: 0.0
+      max_vel_x: 0.5
+
+      min_vel_y: 0.0
+      max_vel_y: 0.0
+
+      max_vel_theta: 0.8
+
+      acc_lim_x: 0.5
+      acc_lim_y: 0.0
+      acc_lim_theta: 1.0
+
+      decel_lim_x: -0.5
+      decel_lim_y: 0.0
+      decel_lim_theta: -1.0
+
+      vx_samples: 10
+      vtheta_samples: 20
+
+      sim_time: 1.5
+
+      xy_goal_tolerance: 0.15
+      trans_stopped_velocity: 0.05
+      short_circuit_trajectory_evaluation: true
+
+      critics:
+        - RotateToGoal
+        - Oscillation
+        - BaseObstacle
+        - GoalAlign
+        - PathAlign
+        - PathDist
+        - GoalDist
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+
+    global_frame: map
+    robot_base_frame: base_link
+
+    odom_topic: /odom
+
+    default_nav_to_pose_bt_xml: >
+      /opt/ros/lyrical/share/nav2_bt_navigator/behavior_trees/
+      navigate_to_pose_w_replanning_and_recovery.xml
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: true
+
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /odom
+
+    behavior_plugins:
+      - spin
+      - backup
+      - drive_on_heading
+      - wait
+
+    spin:
+      plugin: "nav2_behaviors::Spin"
+
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+
+    drive_on_heading:
+      plugin: "nav2_behaviors::DriveOnHeading"
+
+    wait:
+      plugin: "nav2_behaviors::Wait"
+
+waypoint_follower:
+  ros__parameters:
+    use_sim_time: true
+    loop_rate: 20
+    stop_on_failure: false
+
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: true
+
+    smoothing_frequency: 20.0
+    scale_velocities: false
+
+    feedback: "OPEN_LOOP"
+
+    max_velocity:
+      - 0.5
+      - 0.0
+      - 0.8
+
+    min_velocity:
+      - 0.0
+      - 0.0
+      - -0.8
+
+    max_accel:
+      - 0.5
+      - 0.0
+      - 1.0
+
+    max_decel:
+      - -0.5
+      - 0.0
+      - -1.0
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+
+      use_sim_time: true
+
+      global_frame: map
+      robot_base_frame: base_link
+
+      update_frequency: 5.0
+      publish_frequency: 2.0
+
+      resolution: 0.05
+
+      robot_radius: 0.45
+
+      track_unknown_space: true
+
+      plugins:
+        - static_layer
+        - obstacle_layer
+        - inflation_layer
+
+      filters:
+        - keepout_filter
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+
+        enabled: true
+
+        observation_sources: lidar
+
+        lidar:
+          topic: /scan
+          data_type: "LaserScan"
+          marking: true
+          clearing: true
+          obstacle_max_range: 10.0
+          raytrace_max_range: 12.0
+          obstacle_min_range: 0.12
+          raytrace_min_range: 0.12
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.55
+
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: true
+        filter_info_topic: /keepout_costmap_filter_info
+        transform_tolerance: 0.1
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+
+      use_sim_time: true
+
+      global_frame: odom
+      robot_base_frame: base_link
+
+      update_frequency: 10.0
+      publish_frequency: 5.0
+
+      rolling_window: true
+
+      width: 100
+      height: 100
+      resolution: 0.05
+
+      robot_radius: 0.45
+
+      plugins:
+        - obstacle_layer
+        - inflation_layer
+
+      filters:
+        - keepout_filter
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+
+        enabled: true
+
+        observation_sources: lidar
+
+        lidar:
+          topic: /scan
+          data_type: "LaserScan"
+          marking: true
+          clearing: true
+          obstacle_max_range: 10.0
+          raytrace_max_range: 12.0
+          obstacle_min_range: 0.12
+          raytrace_min_range: 0.12
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.55
+
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: true
+        filter_info_topic: /keepout_costmap_filter_info
+        transform_tolerance: 0.1
