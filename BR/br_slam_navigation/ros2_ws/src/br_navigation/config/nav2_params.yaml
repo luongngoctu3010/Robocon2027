@@ -105,9 +105,6 @@ bt_navigator:
 
     odom_topic: /odom
 
-    default_nav_to_pose_bt_xml: >
-      /opt/ros/lyrical/share/nav2_bt_navigator/behavior_trees/
-      navigate_to_pose_w_replanning_and_recovery.xml
 
 behavior_server:
   ros__parameters:
