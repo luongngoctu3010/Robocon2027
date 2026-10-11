@@ -11,13 +11,10 @@ def generate_launch_description():
 
     params_file = os.path.join(pkg, 'config', 'nav2_params.yaml')
     keepout_yaml = os.path.join(pkg, 'maps', 'field_keepout.yaml')
-    default_map = os.path.join(pkg, 'maps', 'robocon_map.yaml')
-
     return LaunchDescription([
         DeclareLaunchArgument(
             'map',
-            default_value=default_map,
-            description='Absolute path to the saved SLAM map YAML file',
+            description='Absolute path to the saved SLAM map YAML file (required)',
         ),
 
         # Load the saved environment map used by Nav2.
