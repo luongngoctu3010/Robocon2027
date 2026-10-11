@@ -1,6 +1,39 @@
 amcl:
   ros__parameters:
     use_sim_time: true
+    global_frame_id: map
+    odom_frame_id: odom
+    base_frame_id: base_link
+    scan_topic: /scan
+    map_topic: /map
+    set_initial_pose: false
+    tf_broadcast: true
+    transform_tolerance: 0.5
+    min_particles: 500
+    max_particles: 2000
+    kld_err: 0.05
+    kld_z: 0.99
+    update_min_d: 0.10
+    update_min_a: 0.20
+    resample_interval: 1
+    robot_model_type: "nav2_amcl::DifferentialMotionModel"
+    alpha1: 0.2
+    alpha2: 0.2
+    alpha3: 0.2
+    alpha4: 0.2
+    alpha5: 0.2
+    laser_model_type: "likelihood_field"
+    laser_min_range: 0.10
+    laser_max_range: 12.0
+    max_beams: 60
+    sigma_hit: 0.2
+    z_hit: 0.5
+    z_short: 0.05
+    z_max: 0.05
+    z_rand: 0.5
+    laser_likelihood_max_dist: 2.0
+    save_pose_rate: 0.5
+    first_map_only: true
 
 map_server:
   ros__parameters:
@@ -15,7 +48,7 @@ planner_server:
     GridBased:
       plugin: "nav2_navfn_planner::NavfnPlanner"
       tolerance: 0.3
-      use_astar: false
+      use_astar: true
       allow_unknown: true
 
 controller_server:
@@ -216,9 +249,10 @@ local_costmap:
       robot_radius: 0.45
 
       plugins:
+        - obstacle_layer
         - inflation_layer
 
-      # filters temporarily disabled for isolation test
+      # Keepout filters are applied on the global costmap first.
 
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
