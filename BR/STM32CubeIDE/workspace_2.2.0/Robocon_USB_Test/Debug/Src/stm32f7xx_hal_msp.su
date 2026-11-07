@@ -1,0 +1,2 @@
+../Src/stm32f7xx_hal_msp.c:52:6:HAL_MspInit	16	static
+../Src/stm32f7xx_hal_msp.c:90:6:HAL_ETH_MspInit	64	static

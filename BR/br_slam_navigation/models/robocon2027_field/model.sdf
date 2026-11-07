@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<sdf version="1.10">
+  <model name="robocon2027_field">
+    <static>true</static>
+
+    <link name="field">
+
+      <visual name="field_visual">
+        <geometry>
+          <mesh>
+            <uri>model://robocon2027_field/meshes/Robocon2027.glb</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <collision name="field_collision">
+        <pose>0 0 -0.05 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>11.05 11.05 0.10</size>
+          </box>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>

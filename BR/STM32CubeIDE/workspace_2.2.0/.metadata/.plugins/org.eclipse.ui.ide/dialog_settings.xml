@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="ExternalProjectImportWizard">
+		<item key="WizardProjectsImportPage.STORE_NESTED_PROJECTS" value="true"/>
+		<item key="WizardProjectsImportPage.STORE_COPY_PROJECT_ID" value="false"/>
+		<item key="WizardProjectsImportPage.STORE_ARCHIVE_SELECTED" value="false"/>
+		<item key="WizardProjectsImportPage.STORE_CLOSE_CREATED_PROJECTS_ID" value="false"/>
+		<item key="WizardProjectsImportPage.STORE_HIDE_CONFLICTING_PROJECTS_ID" value="false"/>
+		<list key="WizardProjectsImportPage.STORE_DIRECTORIES">
+			<item value="/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon_USB_Test"/>
+			<item value="/home/luongngoctu/STM32Cube/Repository/STM32Cube_FW_F7_V1.17.4/Projects/STM32F767ZI-Nucleo/Applications/LwIP/ETH_HTTP_Test/SW4STM32/STM32F767ZI_Nucleo"/>
+			<item value="/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/ETH_HTTP_Test/SW4STM32/STM32F767ZI_Nucleo"/>
+		</list>
+		<list key="WizardProjectsImportPage.STORE_ARCHIVES">
+			<item value=""/>
+		</list>
+		<section name="ExternalProjectImportWizard.dialogBounds">
+			<item key="DIALOG_X_ORIGIN" value="657"/>
+			<item key="DIALOG_Y_ORIGIN" value="125"/>
+			<item key="DIALOG_WIDTH" value="613"/>
+			<item key="DIALOG_HEIGHT" value="803"/>
+			<item key="DIALOG_FONT_NAME" value="1|Ubuntu Sans|11.0|0|GTK|1|"/>
+		</section>
+	</section>
+	<section name="SmartImportWizard">
+		<item key="SmartImportRootWizardPage.STORE_HIDE_ALREADY_OPEN" value="false"/>
+		<item key="SmartImportRootWizardPage.STORE_CLOSE_IMPORTED" value="false"/>
+		<item key="SmartImportRootWizardPage.STORE_NESTED_PROJECTS" value="true"/>
+		<item key="SmartImportRootWizardPage.STORE_CONFIGURE_NATURES" value="true"/>
+		<list key="org.eclipse.ui.internal.wizards.datatransfer.SmartImportRootWizardPage.knownSources">
+			<item value="/home/luongngoctu/STM32Cube/Repository/STM32Cube_FW_F7_V1.17.4/Projects/STM32F767ZI-Nucleo/Applications/LwIP/ETH_HTTP_Test/SW4STM32/STM32F767ZI_Nucleo"/>
+			<item value="/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/ETH_HTTP_Test"/>
+			<item value="/home/luongngoctu/Robocon"/>
+			<item value="/home/luongngoctu/Robocon2027"/>
+		</list>
+		<section name="STSmartImportWizard.dialogBounds">
+			<item key="DIALOG_X_ORIGIN" value="657"/>
+			<item key="DIALOG_Y_ORIGIN" value="125"/>
+			<item key="DIALOG_WIDTH" value="900"/>
+			<item key="DIALOG_HEIGHT" value="691"/>
+			<item key="DIALOG_FONT_NAME" value="1|Ubuntu Sans|11.0|0|GTK|1|"/>
+		</section>
+		<section name="SmartImportWizard.dialogBounds">
+			<item key="DIALOG_X_ORIGIN" value="513"/>
+			<item key="DIALOG_Y_ORIGIN" value="18"/>
+			<item key="DIALOG_WIDTH" value="900"/>
+			<item key="DIALOG_HEIGHT" value="691"/>
+			<item key="DIALOG_FONT_NAME" value="1|Ubuntu Sans|11.0|0|GTK|1|"/>
+		</section>
+	</section>
+	<section name="CleanDialogSettings">
+		<item key="BUILD_NOW" value="true"/>
+		<item key="BUILD_ALL" value="true"/>
+		<item key="TOGGLE_SELECTED" value="false"/>
+		<item key="DIALOG_WIDTH" value="569"/>
+		<item key="DIALOG_HEIGHT" value="484"/>
+		<item key="DIALOG_FONT_NAME" value="1|Ubuntu Sans|11.0|0|GTK|1|"/>
+	</section>
+</section>

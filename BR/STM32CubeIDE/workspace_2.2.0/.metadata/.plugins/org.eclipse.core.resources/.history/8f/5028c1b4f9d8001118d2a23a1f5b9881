@@ -1,0 +1,46 @@
+#include "main.h"
+#include "lwip.h"
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+#include "lwip/ip_addr.h"
+
+#define UDP_SERVER_PORT 5000
+
+extern UART_HandleTypeDef huart1;
+static struct udp_pcb *udp_server_pcb = NULL;
+
+static void udp_server_callback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
+{
+    (void)arg; (void)upcb; (void)addr; (void)port;
+
+    if (p != NULL) {
+        if (p->tot_len > 0 && p->tot_len <= 64) {
+            uint8_t tx_buf[64];
+            u16_t len = pbuf_copy_partial(p, tx_buf, p->tot_len, 0);
+
+            // TRUYỀN THẲNG RA UART1 (PA9/PA10) XUỐNG HOVERBOARD
+            HAL_UART_Transmit(&huart1, tx_buf, len, 10);
+        }
+        pbuf_free(p);
+    }
+}
+
+int main(void)
+{
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_USART1_UART_Init();
+    MX_LWIP_Init();
+
+    udp_server_pcb = udp_new();
+    if (udp_server_pcb != NULL) {
+        udp_bind(udp_server_pcb, IP_ADDR_ANY, UDP_SERVER_PORT);
+        udp_recv(udp_server_pcb, udp_server_callback, NULL);
+    }
+
+    while (1)
+    {
+        MX_LWIP_Process(); // Duy trì stack mạng LwIP
+    }
+}

@@ -1,0 +1,184 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Ethernet (UDP) to Hoverboard (USART1) Bridge for STM32F767
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+#include "main.h"
+#include "lwip.h"
+#include "lwip/udp.h"
+#include <string.h>
+
+/* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart1; // Kết nối Hoverboard (PA9/PA10 - 9600 baud)
+struct udp_pcb *udp_server_pcb;
+
+/* Cấu hình IP cho STM32 (Có thể thay đổi tùy thuộc vào mạng LAN của bạn) */
+#define STM32_IP_ADDR0   192
+#define STM32_IP_ADDR1   168
+#define STM32_IP_ADDR2   1
+#define STM32_IP_ADDR3   100
+
+#define UDP_SERVER_PORT  5000 // Port nhận dữ liệu UDP từ Ubuntu
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART1_UART_Init(void);
+void Error_Handler(void);
+void udp_server_init(void);
+void udp_server_callback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
+
+/* Main Application ----------------------------------------------------------*/
+int main(void)
+{
+    /* 1. Khởi tạo thư viện HAL */
+    HAL_Init();
+
+    /* 2. Cấu hình xung nhịp hệ thống */
+    SystemClock_Config();
+
+    /* 3. Khởi tạo chân GPIO */
+    MX_GPIO_Init();
+
+    /* 4. Khởi tạo ngoại vi USART1 giao tiếp Hoverboard (9600 baud) */
+    MX_USART1_UART_Init();
+
+    /* 5. Khởi tạo ngăn xếp mạng LwIP và Ethernet */
+    MX_LWIP_Init();
+
+    /* 6. Khởi tạo UDP Server lắng nghe gói tin từ Ubuntu */
+    udp_server_init();
+
+    /* Vòng lặp chính xử lý tiến trình mạng */
+    while (1)
+    {
+        /* Xử lý gói tin mạng đến (Bắt buộc đối với LwIP không dùng hệ điều hành RTOS) */
+        MX_LWIP_Process();
+    }
+}
+
+/* Khởi tạo UDP Server lắng nghe trên cổng 5000 ------------------------------*/
+void udp_server_init(void)
+{
+    err_t err;
+    ip4_addr_t my_ip;
+
+    IP4_ADDR(&my_ip, STM32_IP_ADDR0, STM32_IP_ADDR1, STM32_IP_ADDR2, STM32_IP_ADDR3);
+
+    /* Tạo một UDP Protocol Control Block mới */
+    udp_server_pcb = udp_new();
+    if (udp_server_pcb != NULL)
+    {
+        /* Gắn kết PCB với địa chỉ IP cục bộ và cổng */
+        err = udp_bind(udp_server_pcb, &my_ip, UDP_SERVER_PORT);
+        if (err == ERR_OK)
+        {
+            /* Đăng ký hàm callback xử lý khi có gói tin UDP gửi đến */
+            udp_recv(udp_server_pcb, udp_server_callback, NULL);
+        }
+        else
+        {
+            Error_Handler();
+        }
+    }
+}
+
+/* Hàm Callback nhận dữ liệu UDP từ Ubuntu ----------------------------------*/
+void udp_server_callback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
+{
+    if (p != NULL)
+    {
+        /* Kiểm tra kích thước gói dữ liệu (Ví dụ gói điều khiển hoverboard chuẩn 8 bytes) */
+        if (p->len >= 8)
+        {
+            uint8_t hover_packet[8];
+
+            /* Sao chép dữ liệu từ bộ đệm mạng pbuf sang mảng byte */
+            pbuf_copy_partial(p, hover_packet, 8, 0);
+
+            /* Chuyển tiếp trực tiếp xuống Hoverboard qua USART1 (PA9/PA10) */
+            HAL_UART_Transmit(&huart1, hover_packet, 8, 100);
+        }
+
+        /* Giải phóng bộ đệm mạng pbuf sau khi xử lý xong */
+        pbuf_free(p);
+    }
+}
+
+/* System Clock Configuration -----------------------------------------------*/
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+                                | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* GPIO Configuration --------------------------------------------------------*/
+static void MX_GPIO_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOG_CLK_ENABLE(); // Cổng GPIO dùng cho PHY Ethernet (RMII) tùy phiên bản mạch
+
+    /* USART1 GPIO Configuration: PA9 -> TX, PA10 -> RX (Giao tiếp Hoverboard) */
+    GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_10;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+}
+
+/* USART1 Initialization (Hoverboard Interface - 9600 Baud) -----------------*/
+static void MX_USART1_UART_Init(void)
+{
+    huart1.Instance = USART1;
+    huart1.Init.BaudRate = 9600; // Tốc độ chuẩn cho đa số firmware hoverboard
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+    if (HAL_UART_Init(&huart1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* Error Handler -------------------------------------------------------------*/
+void Error_Handler(void)
+{
+    __disable_irq();
+    while (1)
+    {
+    }
+}

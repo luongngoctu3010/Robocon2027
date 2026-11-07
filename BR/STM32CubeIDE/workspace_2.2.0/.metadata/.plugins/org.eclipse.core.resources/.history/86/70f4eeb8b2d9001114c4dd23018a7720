@@ -1,0 +1,696 @@
+#include "main.h"
+#include "lwip.h"
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+#include "lwip/ip_addr.h"
+#include "../Core/Inc/gpio.h"
+
+#include <stdint.h>
+#include <string.h>
+
+/* =========================================================
+ * CONFIGURATION
+ * ========================================================= */
+
+#define UDP_PORT                5005U
+#define UBUNTU_FEEDBACK_PORT    5001U
+
+#define HOVERBOARD_BAUDRATE     115200U
+#define UART_TIMEOUT            100U
+
+#define COMMAND_PACKET_SIZE     8U
+#define FEEDBACK_PACKET_SIZE    18U
+
+#define START_FRAME             0xABCDU
+
+/* =========================================================
+ * HOVERBOARD FEEDBACK STRUCTURE
+ *
+ * Total size = 18 bytes
+ * ========================================================= */
+
+typedef struct __attribute__((packed))
+{
+    uint16_t start;
+    int16_t  cmd1;
+    int16_t  cmd2;
+    int16_t  speedR_meas;
+    int16_t  speedL_meas;
+    int16_t  batVoltage;
+    int16_t  boardTemp;
+    uint16_t cmdLed;
+    uint16_t checksum;
+
+} SerialFeedback;
+
+/* Compile-time check */
+_Static_assert(sizeof(SerialFeedback) == FEEDBACK_PACKET_SIZE,
+               "SerialFeedback must be exactly 18 bytes");
+
+/* =========================================================
+ * GLOBAL VARIABLES
+ * ========================================================= */
+
+UART_HandleTypeDef huart1;
+
+static struct udp_pcb *udp_pcb_bridge = NULL;
+
+/* UDP statistics */
+volatile uint32_t udp_rx_packets = 0;
+volatile uint32_t udp_rx_bytes = 0;
+volatile uint32_t udp_rx_errors = 0;
+
+/* UART statistics */
+volatile uint32_t uart_tx_bytes = 0;
+volatile uint32_t uart_tx_errors = 0;
+volatile uint32_t uart_rx_bytes = 0;
+volatile uint32_t uart_rx_errors = 0;
+
+/* UART receive interrupt */
+static uint8_t uart_rx_byte;
+
+/* Feedback parser */
+static uint8_t feedback_buffer[FEEDBACK_PACKET_SIZE];
+static uint8_t feedback_index = 0;
+
+/* Feedback shared between interrupt and main loop */
+static SerialFeedback feedback_pending;
+static volatile uint8_t feedback_ready = 0;
+
+/* Ubuntu destination IP */
+static ip_addr_t ubuntu_ip;
+static volatile uint8_t ubuntu_ip_valid = 0;
+
+/* =========================================================
+ * FUNCTION PROTOTYPES
+ * ========================================================= */
+
+void SystemClock_Config(void);
+void MPU_Config(void);
+void Error_Handler(void);
+
+static void USART1_Init(void);
+
+static void UDP_Bridge_Init(void);
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+);
+
+static void ProcessUARTByte(uint8_t data);
+
+static uint8_t ValidateFeedback(uint8_t *data);
+
+static void UDP_SendFeedback(void);
+
+/* =========================================================
+ * USART1 INITIALIZATION
+ *
+ * STM32F767ZI:
+ * PA9  = USART1_TX
+ * PA10 = USART1_RX
+ *
+ * Baudrate = 115200
+ * Data     = 8 bits
+ * Stop     = 1 bit
+ * Parity   = None
+ * ========================================================= */
+
+static void USART1_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_USART1_CLK_ENABLE();
+
+    GPIO_InitStruct.Pin =
+        GPIO_PIN_9 | GPIO_PIN_10;
+
+    GPIO_InitStruct.Mode =
+        GPIO_MODE_AF_PP;
+
+    GPIO_InitStruct.Pull =
+        GPIO_PULLUP;
+
+    GPIO_InitStruct.Speed =
+        GPIO_SPEED_FREQ_VERY_HIGH;
+
+    GPIO_InitStruct.Alternate =
+        GPIO_AF7_USART1;
+
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    huart1.Instance = USART1;
+
+    huart1.Init.BaudRate = HOVERBOARD_BAUDRATE;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+
+    if (HAL_UART_Init(&huart1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* =========================================================
+ * VALIDATE HOVERBOARD FEEDBACK
+ *
+ * Frame:
+ * 0xABCD
+ * cmd1
+ * cmd2
+ * speedR_meas
+ * speedL_meas
+ * batVoltage
+ * boardTemp
+ * cmdLed
+ * checksum
+ * ========================================================= */
+
+static uint8_t ValidateFeedback(uint8_t *data)
+{
+    SerialFeedback fb;
+
+    memcpy(&fb, data, sizeof(SerialFeedback));
+
+    if (fb.start != START_FRAME)
+    {
+        return 0;
+    }
+
+    uint16_t calculated_checksum =
+        fb.start ^
+        (uint16_t)fb.cmd1 ^
+        (uint16_t)fb.cmd2 ^
+        (uint16_t)fb.speedR_meas ^
+        (uint16_t)fb.speedL_meas ^
+        (uint16_t)fb.batVoltage ^
+        (uint16_t)fb.boardTemp ^
+        fb.cmdLed;
+
+    if (calculated_checksum != fb.checksum)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+/* =========================================================
+ * PROCESS UART RECEIVED BYTE
+ *
+ * Synchronize by:
+ * Byte 0 = 0xCD
+ * Byte 1 = 0xAB
+ *
+ * Then receive the remaining 16 bytes.
+ * ========================================================= */
+
+static void ProcessUARTByte(uint8_t data)
+{
+    /* Find first byte: 0xCD */
+    if (feedback_index == 0U)
+    {
+        if (data == 0xCDU)
+        {
+            feedback_buffer[feedback_index++] = data;
+        }
+
+        return;
+    }
+
+    /* Find second byte: 0xAB */
+    if (feedback_index == 1U)
+    {
+        if (data == 0xABU)
+        {
+            feedback_buffer[feedback_index++] = data;
+        }
+        else if (data == 0xCDU)
+        {
+            /* Possible new frame start */
+            feedback_buffer[0] = data;
+            feedback_index = 1U;
+        }
+        else
+        {
+            feedback_index = 0U;
+        }
+
+        return;
+    }
+
+    /* Receive remaining bytes */
+    feedback_buffer[feedback_index++] = data;
+
+    /* Complete 18-byte frame */
+    if (feedback_index >= FEEDBACK_PACKET_SIZE)
+    {
+        if (ValidateFeedback(feedback_buffer))
+        {
+            SerialFeedback temp_feedback;
+
+            memcpy(
+                &temp_feedback,
+                feedback_buffer,
+                sizeof(SerialFeedback)
+            );
+
+            /*
+             * Protect shared feedback data.
+             * Main loop copies this structure with IRQ disabled.
+             */
+            feedback_pending = temp_feedback;
+            feedback_ready = 1U;
+        }
+
+        feedback_index = 0U;
+    }
+}
+
+/* =========================================================
+ * UART RECEIVE COMPLETE CALLBACK
+ * ========================================================= */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        uart_rx_bytes++;
+
+        ProcessUARTByte(uart_rx_byte);
+
+        /* Receive next byte */
+        if (HAL_UART_Receive_IT(
+                &huart1,
+                &uart_rx_byte,
+                1U
+            ) != HAL_OK)
+        {
+            uart_rx_errors++;
+        }
+    }
+}
+
+/* =========================================================
+ * UART ERROR CALLBACK
+ *
+ * Restart reception after UART error.
+ * ========================================================= */
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        uart_rx_errors++;
+
+        HAL_UART_AbortReceive(&huart1);
+
+        if (HAL_UART_Receive_IT(
+                &huart1,
+                &uart_rx_byte,
+                1U
+            ) != HAL_OK)
+        {
+            uart_rx_errors++;
+        }
+    }
+}
+
+/* =========================================================
+ * UDP RECEIVE CALLBACK
+ *
+ * Ubuntu -> STM32F767ZI
+ *
+ * UDP destination port = 5005
+ *
+ * Forward the original 8-byte command to USART1.
+ * ========================================================= */
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+)
+{
+    struct pbuf *q;
+
+    (void)arg;
+    (void)pcb;
+    (void)port;
+
+    if (p == NULL)
+    {
+        return;
+    }
+
+    /*
+     * Only accept the expected 8-byte command packet.
+     * Do not modify its content.
+     */
+    if (p->tot_len != COMMAND_PACKET_SIZE)
+    {
+        udp_rx_errors++;
+        pbuf_free(p);
+        return;
+    }
+
+    /*
+     * Remember Ubuntu's IP address.
+     * Feedback will be sent back to this IP.
+     */
+    ip_addr_copy(ubuntu_ip, *addr);
+    ubuntu_ip_valid = 1U;
+
+    udp_rx_packets++;
+    udp_rx_bytes += p->tot_len;
+
+    /*
+     * Forward all pbuf blocks in their original order.
+     */
+    for (q = p; q != NULL; q = q->next)
+    {
+        if (q->len == 0U)
+        {
+            continue;
+        }
+
+        if (HAL_UART_Transmit(
+                &huart1,
+                (uint8_t *)q->payload,
+                q->len,
+                UART_TIMEOUT
+            ) == HAL_OK)
+        {
+            uart_tx_bytes += q->len;
+        }
+        else
+        {
+            uart_tx_errors++;
+        }
+    }
+
+    pbuf_free(p);
+}
+
+/* =========================================================
+ * UDP BRIDGE INITIALIZATION
+ *
+ * Listen on UDP port 5005.
+ * ========================================================= */
+
+static void UDP_Bridge_Init(void)
+{
+    err_t err;
+
+    udp_pcb_bridge = udp_new();
+
+    if (udp_pcb_bridge == NULL)
+    {
+        Error_Handler();
+    }
+
+    err = udp_bind(
+        udp_pcb_bridge,
+        IP_ADDR_ANY,
+        UDP_PORT
+    );
+
+    if (err != ERR_OK)
+    {
+        udp_remove(udp_pcb_bridge);
+        udp_pcb_bridge = NULL;
+
+        Error_Handler();
+    }
+
+    udp_recv(
+        udp_pcb_bridge,
+        UDP_Receive_Callback,
+        NULL
+    );
+}
+
+/* =========================================================
+ * SEND HOVERBOARD FEEDBACK TO UBUNTU
+ *
+ * STM32F767ZI -> Ubuntu
+ *
+ * UDP destination port = 5001
+ * Payload size = 18 bytes
+ * ========================================================= */
+
+static void UDP_SendFeedback(void)
+{
+    SerialFeedback local_feedback;
+    uint32_t primask;
+
+    if (feedback_ready == 0U)
+    {
+        return;
+    }
+
+    if (ubuntu_ip_valid == 0U)
+    {
+        return;
+    }
+
+    /*
+     * Copy feedback atomically.
+     * Avoid interrupt modifying the structure during copy.
+     */
+    primask = __get_PRIMASK();
+    __disable_irq();
+
+    memcpy(
+        &local_feedback,
+        &feedback_pending,
+        sizeof(SerialFeedback)
+    );
+
+    feedback_ready = 0U;
+
+    if (primask == 0U)
+    {
+        __enable_irq();
+    }
+
+    /* Allocate LwIP packet buffer */
+    struct pbuf *p = pbuf_alloc(
+        PBUF_TRANSPORT,
+        sizeof(SerialFeedback),
+        PBUF_RAM
+    );
+
+    if (p == NULL)
+    {
+        return;
+    }
+
+    memcpy(
+        p->payload,
+        &local_feedback,
+        sizeof(SerialFeedback)
+    );
+
+    /* Send feedback to Ubuntu port 5001 */
+    err_t err = udp_sendto(
+        udp_pcb_bridge,
+        p,
+        &ubuntu_ip,
+        UBUNTU_FEEDBACK_PORT
+    );
+
+    if (err != ERR_OK)
+    {
+        udp_rx_errors++;
+    }
+
+    pbuf_free(p);
+}
+
+/* =========================================================
+ * MAIN
+ * ========================================================= */
+
+int main(void)
+{
+    /*
+     * IMPORTANT:
+     * MPU_Config() must contain the original CubeMX-generated
+     * MPU configuration for this STM32F767ZI Ethernet project.
+     */
+
+    MPU_Config();
+
+    HAL_Init();
+
+    SystemClock_Config();
+
+    MX_GPIO_Init();
+
+    USART1_Init();
+
+    /*
+     * Start UART receive interrupt before LwIP operation.
+     */
+    if (HAL_UART_Receive_IT(
+            &huart1,
+            &uart_rx_byte,
+            1U
+        ) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    MX_LWIP_Init();
+
+    UDP_Bridge_Init();
+
+    while (1)
+    {
+        /*
+         * Process Ethernet and UDP packets.
+         */
+        MX_LWIP_Process();
+
+        /*
+         * Send validated UART feedback to Ubuntu.
+         */
+        UDP_SendFeedback();
+    }
+}
+
+/* =========================================================
+ * SYSTEM CLOCK CONFIGURATION
+ *
+ * HSI = 16 MHz
+ * SYSCLK = 216 MHz
+ * ========================================================= */
+
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+
+    HAL_PWR_EnableBkUpAccess();
+
+    __HAL_PWR_VOLTAGESCALING_CONFIG(
+        PWR_REGULATOR_VOLTAGE_SCALE1
+    );
+
+    RCC_OscInitStruct.OscillatorType =
+        RCC_OSCILLATORTYPE_HSI;
+
+    RCC_OscInitStruct.HSIState =
+        RCC_HSI_ON;
+
+    RCC_OscInitStruct.HSICalibrationValue =
+        RCC_HSICALIBRATION_DEFAULT;
+
+    RCC_OscInitStruct.PLL.PLLState =
+        RCC_PLL_ON;
+
+    RCC_OscInitStruct.PLL.PLLSource =
+        RCC_PLLSOURCE_HSI;
+
+    RCC_OscInitStruct.PLL.PLLM = 8;
+    RCC_OscInitStruct.PLL.PLLN = 216;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 2;
+    RCC_OscInitStruct.PLL.PLLR = 2;
+
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    if (HAL_PWREx_EnableOverDrive() != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    RCC_ClkInitStruct.ClockType =
+        RCC_CLOCKTYPE_HCLK |
+        RCC_CLOCKTYPE_SYSCLK |
+        RCC_CLOCKTYPE_PCLK1 |
+        RCC_CLOCKTYPE_PCLK2;
+
+    RCC_ClkInitStruct.SYSCLKSource =
+        RCC_SYSCLKSOURCE_PLLCLK;
+
+    RCC_ClkInitStruct.AHBCLKDivider =
+        RCC_SYSCLK_DIV1;
+
+    RCC_ClkInitStruct.APB1CLKDivider =
+        RCC_HCLK_DIV4;
+
+    RCC_ClkInitStruct.APB2CLKDivider =
+        RCC_HCLK_DIV2;
+
+    if (HAL_RCC_ClockConfig(
+            &RCC_ClkInitStruct,
+            FLASH_LATENCY_7
+        ) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* =========================================================
+ * MPU CONFIGURATION
+ *
+ * RESTORE THE ORIGINAL GENERATED FUNCTION HERE.
+ *
+ * Do not leave this function empty when using Ethernet DMA
+ * if your project requires MPU/cache configuration.
+ * ========================================================= */
+
+/*
+ * Paste the original MPU_Config() generated by CubeMX here.
+ *
+ * Do not use a generic MPU configuration without checking:
+ * - Ethernet DMA descriptors
+ * - Ethernet RX/TX buffers
+ * - LwIP memory placement
+ * - D-cache settings
+ */
+
+/* =========================================================
+ * ERROR HANDLER
+ * ========================================================= */
+
+void Error_Handler(void)
+{
+    __disable_irq();
+
+    while (1)
+    {
+    }
+}
+
+#ifdef USE_FULL_ASSERT
+
+void assert_failed(uint8_t *file, uint32_t line)
+{
+    (void)file;
+    (void)line;
+
+    while (1)
+    {
+    }
+}
+
+#endif

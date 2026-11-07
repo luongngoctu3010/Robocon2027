@@ -1,0 +1,108 @@
+
+#include "main.h"
+#include <stdint.h>
+
+/* UART handles do CubeMX generate */
+extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart3;
+
+/* Bo dem nhan tung byte */
+static uint8_t usb_rx_byte;
+static uint8_t hoverboard_rx_byte;
+
+/* ================= MAIN ================= */
+
+int main(void)
+{
+    HAL_Init();
+
+    SystemClock_Config();
+
+    MX_GPIO_Init();
+
+    MX_USART1_UART_Init();
+    MX_USART3_UART_Init();
+
+    /* Bat dau nhan du lieu tu Ubuntu qua USB VCP */
+    if (HAL_UART_Receive_IT(&huart3, &usb_rx_byte, 1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /* Bat dau nhan du lieu phan hoi tu Hoverboard */
+    if (HAL_UART_Receive_IT(&huart1, &hoverboard_rx_byte, 1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    while (1)
+    {
+        /* Du lieu duoc chuyen tiep trong UART callback */
+    }
+}
+
+
+/* ========== UART RECEIVE CALLBACK ========== */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    /* Ubuntu -> Hoverboard */
+    if (huart->Instance == USART3)
+    {
+        HAL_UART_Transmit(
+            &huart1,
+            &usb_rx_byte,
+            1,
+            10
+        );
+
+        /* Nhan byte tiep theo tu Ubuntu */
+        HAL_UART_Receive_IT(
+            &huart3,
+            &usb_rx_byte,
+            1
+        );
+    }
+
+    /* Hoverboard -> Ubuntu */
+    else if (huart->Instance == USART1)
+    {
+        HAL_UART_Transmit(
+            &huart3,
+            &hoverboard_rx_byte,
+            1,
+            10
+        );
+
+        /* Nhan byte tiep theo tu Hoverboard */
+        HAL_UART_Receive_IT(
+            &huart1,
+            &hoverboard_rx_byte,
+            1
+        );
+    }
+}
+
+
+/* ========== UART ERROR CALLBACK ========== */
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART3)
+    {
+        HAL_UART_Receive_IT(
+            &huart3,
+            &usb_rx_byte,
+            1
+        );
+    }
+
+    else if (huart->Instance == USART1)
+    {
+        HAL_UART_Receive_IT(
+            &huart1,
+            &hoverboard_rx_byte,
+            1
+        );
+    }
+}

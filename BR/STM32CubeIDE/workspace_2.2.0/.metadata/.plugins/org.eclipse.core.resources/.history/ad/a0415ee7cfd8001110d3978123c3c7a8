@@ -1,0 +1,219 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : STM32F767ZI UART3 Echo Test
+  *                  Ubuntu PC <-> STM32F767ZI
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include <stdint.h>
+#include <string.h>
+
+/* Private variables ---------------------------------------------------------*/
+
+UART_HandleTypeDef huart3;
+
+/* Private function prototypes -----------------------------------------------*/
+
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART3_UART_Init(void);
+void Error_Handler(void);
+
+/* Main Program --------------------------------------------------------------*/
+
+int main(void)
+{
+    /* 1. Khoi tao HAL */
+    HAL_Init();
+
+    /* 2. Cau hinh System Clock */
+    SystemClock_Config();
+
+    /* 3. Khoi tao GPIO */
+    MX_GPIO_Init();
+
+    /* 4. Khoi tao USART3 */
+    MX_USART3_UART_Init();
+
+    /* 5. Bien nhan du lieu */
+    uint8_t rx_data;
+
+    /* 6. Gui thong bao khi STM32 khoi dong */
+    const char *welcome =
+        "\r\nSTM32F767 READY - ECHO TEST\r\n";
+
+    if (HAL_UART_Transmit(&huart3,
+                          (uint8_t *)welcome,
+                          strlen(welcome),
+                          1000) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /* 7. Vong lap Echo */
+    while (1)
+    {
+        /*
+         * Cho nhan 1 byte tu Ubuntu
+         */
+        if (HAL_UART_Receive(&huart3,
+                             &rx_data,
+                             1,
+                             HAL_MAX_DELAY) == HAL_OK)
+        {
+            /*
+             * Gui tra lai dung byte vua nhan
+             */
+            if (HAL_UART_Transmit(&huart3,
+                                  &rx_data,
+                                  1,
+                                  1000) != HAL_OK)
+            {
+                Error_Handler();
+            }
+        }
+    }
+}
+
+/* System Clock Configuration -----------------------------------------------*/
+
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    /* Enable Power Clock */
+    __HAL_RCC_PWR_CLK_ENABLE();
+
+    /* Voltage Scaling */
+    __HAL_PWR_VOLTAGESCALING_CONFIG(
+        PWR_REGULATOR_VOLTAGE_SCALE3
+    );
+
+    /* HSI Oscillator */
+    RCC_OscInitStruct.OscillatorType =
+        RCC_OSCILLATORTYPE_HSI;
+
+    RCC_OscInitStruct.HSIState =
+        RCC_HSI_ON;
+
+    RCC_OscInitStruct.HSICalibrationValue =
+        RCC_HSICALIBRATION_DEFAULT;
+
+    RCC_OscInitStruct.PLL.PLLState =
+        RCC_PLL_NONE;
+
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /* Clock Configuration */
+    RCC_ClkInitStruct.ClockType =
+        RCC_CLOCKTYPE_HCLK |
+        RCC_CLOCKTYPE_SYSCLK |
+        RCC_CLOCKTYPE_PCLK1 |
+        RCC_CLOCKTYPE_PCLK2;
+
+    RCC_ClkInitStruct.SYSCLKSource =
+        RCC_SYSCLKSOURCE_HSI;
+
+    RCC_ClkInitStruct.AHBCLKDivider =
+        RCC_SYSCLK_DIV1;
+
+    RCC_ClkInitStruct.APB1CLKDivider =
+        RCC_HCLK_DIV1;
+
+    RCC_ClkInitStruct.APB2CLKDivider =
+        RCC_HCLK_DIV1;
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct,
+                            FLASH_LATENCY_0) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* GPIO Initialization ------------------------------------------------------*/
+
+static void MX_GPIO_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    /* Enable GPIO D Clock */
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+
+    /* USART3:
+       PD8  -> USART3_TX
+       PD9  -> USART3_RX
+    */
+
+    GPIO_InitStruct.Pin =
+        GPIO_PIN_8 | GPIO_PIN_9;
+
+    GPIO_InitStruct.Mode =
+        GPIO_MODE_AF_PP;
+
+    GPIO_InitStruct.Pull =
+        GPIO_NOPULL;
+
+    GPIO_InitStruct.Speed =
+        GPIO_SPEED_FREQ_VERY_HIGH;
+
+    GPIO_InitStruct.Alternate =
+        GPIO_AF7_USART3;
+
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+}
+
+/* USART3 Initialization ----------------------------------------------------*/
+
+static void MX_USART3_UART_Init(void)
+{
+    /* Enable USART3 Clock */
+    __HAL_RCC_USART3_CLK_ENABLE();
+
+    /* USART3 Configuration */
+    huart3.Instance = USART3;
+
+    huart3.Init.BaudRate = 115200;
+
+    huart3.Init.WordLength =
+        UART_WORDLENGTH_8B;
+
+    huart3.Init.StopBits =
+        UART_STOPBITS_1;
+
+    huart3.Init.Parity =
+        UART_PARITY_NONE;
+
+    huart3.Init.Mode =
+        UART_MODE_TX_RX;
+
+    huart3.Init.HwFlowCtl =
+        UART_HWCONTROL_NONE;
+
+    huart3.Init.OverSampling =
+        UART_OVERSAMPLING_16;
+
+    if (HAL_UART_Init(&huart3) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* Error Handler -------------------------------------------------------------*/
+
+void Error_Handler(void)
+{
+    __disable_irq();
+
+    while (1)
+    {
+    }
+}

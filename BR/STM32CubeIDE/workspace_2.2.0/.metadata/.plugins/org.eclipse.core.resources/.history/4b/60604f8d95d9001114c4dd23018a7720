@@ -1,0 +1,321 @@
+
+#include "main.h"
+#include "lwip.h"
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+#include "lwip/ip_addr.h"
+#include <stdint.h>
+#include <string.h>
+
+/* =========================================================
+   CONFIGURATION
+   ========================================================= */
+
+#define UDP_PORT               5005
+#define HOVERBOARD_BAUDRATE    115200
+
+/* =========================================================
+   GLOBAL VARIABLES
+   ========================================================= */
+
+UART_HandleTypeDef huart1;
+
+static struct udp_pcb *udp_pcb_bridge = NULL;
+
+volatile uint32_t udp_rx_packets = 0;
+volatile uint32_t uart_tx_bytes = 0;
+volatile uint32_t uart_tx_errors = 0;
+
+/* =========================================================
+   FUNCTION PROTOTYPES
+   ========================================================= */
+
+void SystemClock_Config(void);
+void MPU_Config(void);
+void Error_Handler(void);
+
+static void USART1_Init(void);
+static void UDP_Bridge_Init(void);
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+);
+
+/* =========================================================
+   USART1 INITIALIZATION
+   PA9  = TX
+   PA10 = RX
+   ========================================================= */
+
+static void USART1_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_USART1_CLK_ENABLE();
+
+    /* PA9 - USART1_TX */
+    /* PA10 - USART1_RX */
+
+    GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_10;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
+
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    huart1.Instance = USART1;
+
+    huart1.Init.BaudRate = HOVERBOARD_BAUDRATE;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+
+    if (HAL_UART_Init(&huart1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* =========================================================
+   UDP RECEIVE CALLBACK
+   Ethernet -> UART1 -> Hoverboard
+
+   No modification of received bytes.
+   ========================================================= */
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+)
+{
+    struct pbuf *q;
+
+    if (p == NULL)
+    {
+        return;
+    }
+
+    udp_rx_packets++;
+
+    for (q = p; q != NULL; q = q->next)
+    {
+        if (q->len > 0)
+        {
+            HAL_StatusTypeDef status;
+
+            status = HAL_UART_Transmit(
+                &huart1,
+                (uint8_t *)q->payload,
+                q->len,
+                100
+            );
+
+            if (status == HAL_OK)
+            {
+                uart_tx_bytes += q->len;
+            }
+            else
+            {
+                uart_tx_errors++;
+            }
+        }
+    }
+
+    pbuf_free(p);
+}
+
+/* =========================================================
+   UDP BRIDGE INITIALIZATION
+   ========================================================= */
+
+static void UDP_Bridge_Init(void)
+{
+    err_t err;
+
+    udp_pcb_bridge = udp_new();
+
+    if (udp_pcb_bridge == NULL)
+    {
+        Error_Handler();
+    }
+
+    err = udp_bind(
+        udp_pcb_bridge,
+        IP_ADDR_ANY,
+        UDP_PORT
+    );
+
+    if (err != ERR_OK)
+    {
+        udp_remove(udp_pcb_bridge);
+        udp_pcb_bridge = NULL;
+
+        Error_Handler();
+    }
+
+    udp_recv(
+        udp_pcb_bridge,
+        UDP_Receive_Callback,
+        NULL
+    );
+}
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+
+int main(void)
+{
+    MPU_Config();
+
+    HAL_Init();
+
+    SystemClock_Config();
+
+    MX_GPIO_Init();
+
+    USART1_Init();
+
+    MX_LWIP_Init();
+
+    UDP_Bridge_Init();
+
+    while (1)
+    {
+        MX_LWIP_Process();
+    }
+}
+
+/* =========================================================
+   SYSTEM CLOCK - 216 MHz
+   ========================================================= */
+
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+
+    __HAL_PWR_VOLTAGESCALING_CONFIG(
+        PWR_REGULATOR_VOLTAGE_SCALE1
+    );
+
+    RCC_OscInitStruct.OscillatorType =
+        RCC_OSCILLATORTYPE_HSI;
+
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+
+    RCC_OscInitStruct.HSICalibrationValue =
+        RCC_HSICALIBRATION_DEFAULT;
+
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+
+    RCC_OscInitStruct.PLL.PLLSource =
+        RCC_PLLSOURCE_HSI;
+
+    RCC_OscInitStruct.PLL.PLLM = 8;
+    RCC_OscInitStruct.PLL.PLLN = 216;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 2;
+    RCC_OscInitStruct.PLL.PLLR = 2;
+
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    if (HAL_PWREx_EnableOverDrive() != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    RCC_ClkInitStruct.ClockType =
+        RCC_CLOCKTYPE_HCLK |
+        RCC_CLOCKTYPE_SYSCLK |
+        RCC_CLOCKTYPE_PCLK1 |
+        RCC_CLOCKTYPE_PCLK2;
+
+    RCC_ClkInitStruct.SYSCLKSource =
+        RCC_SYSCLKSOURCE_PLLCLK;
+
+    RCC_ClkInitStruct.AHBCLKDivider =
+        RCC_SYSCLK_DIV1;
+
+    RCC_ClkInitStruct.APB1CLKDivider =
+        RCC_HCLK_DIV4;
+
+    RCC_ClkInitStruct.APB2CLKDivider =
+        RCC_HCLK_DIV2;
+
+    if (HAL_RCC_ClockConfig(
+        &RCC_ClkInitStruct,
+        FLASH_LATENCY_7
+    ) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* =========================================================
+   MPU CONFIGURATION
+   ========================================================= */
+
+void MPU_Config(void)
+{
+    MPU_Region_InitTypeDef MPU_InitStruct = {0};
+
+    HAL_MPU_Disable();
+
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+    MPU_InitStruct.BaseAddress = 0x0;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+    MPU_InitStruct.SubRegionDisable = 0x87;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+    MPU_InitStruct.DisableExec =
+        MPU_INSTRUCTION_ACCESS_DISABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+    MPU_InitStruct.IsCacheable =
+        MPU_ACCESS_NOT_CACHEABLE;
+    MPU_InitStruct.IsBufferable =
+        MPU_ACCESS_NOT_BUFFERABLE;
+
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+}
+
+/* =========================================================
+   ERROR HANDLER
+   ========================================================= */
+
+void Error_Handler(void)
+{
+    __disable_irq();
+
+    while (1)
+    {
+    }
+}
+
+#ifdef USE_FULL_ASSERT
+
+void assert_failed(uint8_t *file, uint32_t line)
+{
+}
+
+#endif

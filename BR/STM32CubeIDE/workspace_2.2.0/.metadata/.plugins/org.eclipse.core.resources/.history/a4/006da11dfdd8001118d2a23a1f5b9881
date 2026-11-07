@@ -1,0 +1,369 @@
+#include "main.h"
+#include "lwip.h"
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+
+#include <stdint.h>
+
+/*=========================================
+ * CONFIGURATION
+ *=========================================*/
+
+#define UDP_PORT          5000
+#define UART_BAUDRATE     115200
+
+#define UDP_TIMEOUT_MS    300
+
+/*=========================================
+ * UART HANDLE
+ *=========================================*/
+
+UART_HandleTypeDef huart1;
+
+/*=========================================
+ * UDP HANDLE
+ *=========================================*/
+
+static struct udp_pcb *udp_pcb = NULL;
+
+static uint32_t last_udp_tick = 0;
+
+static uint8_t udp_received = 0;
+
+/*=========================================
+ * FUNCTION PROTOTYPES
+ *=========================================*/
+
+void SystemClock_Config(void);
+void MX_GPIO_Init(void);
+void MX_USART1_UART_Init(void);
+void Error_Handler(void);
+
+static void UDP_Server_Init(void);
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+);
+
+/*=========================================
+ * USART1 SEND
+ * PA9 = TX
+ * PA10 = RX
+ *=========================================*/
+
+static void UART_Send_Bytes(
+    uint8_t *data,
+    uint16_t length
+)
+{
+    HAL_UART_Transmit(
+        &huart1,
+        data,
+        length,
+        100
+    );
+}
+
+/*=========================================
+ * UDP RECEIVE CALLBACK
+ *=========================================*/
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+)
+{
+    uint8_t buffer[64];
+
+    uint16_t length;
+    uint16_t copied;
+
+    (void)arg;
+    (void)pcb;
+    (void)addr;
+    (void)port;
+
+    if (p == NULL)
+    {
+        return;
+    }
+
+    length = p->tot_len;
+
+    if (length == 0 || length > sizeof(buffer))
+    {
+        pbuf_free(p);
+        return;
+    }
+
+    copied = pbuf_copy_partial(
+        p,
+        buffer,
+        length,
+        0
+    );
+
+    pbuf_free(p);
+
+    if (copied != length)
+    {
+        return;
+    }
+
+    /*
+     * Forward original UDP bytes.
+     * No conversion.
+     * No checksum.
+     * No motor mixing.
+     */
+
+    UART_Send_Bytes(
+        buffer,
+        length
+    );
+
+    last_udp_tick = HAL_GetTick();
+
+    udp_received = 1;
+}
+
+/*=========================================
+ * UDP SERVER INIT
+ *=========================================*/
+
+static void UDP_Server_Init(void)
+{
+    err_t result;
+
+    udp_pcb = udp_new();
+
+    if (udp_pcb == NULL)
+    {
+        Error_Handler();
+    }
+
+    result = udp_bind(
+        udp_pcb,
+        IP_ADDR_ANY,
+        UDP_PORT
+    );
+
+    if (result != ERR_OK)
+    {
+        udp_remove(udp_pcb);
+        udp_pcb = NULL;
+
+        Error_Handler();
+    }
+
+    udp_recv(
+        udp_pcb,
+        UDP_Receive_Callback,
+        NULL
+    );
+}
+
+/*=========================================
+ * GPIO INIT
+ *=========================================*/
+
+void MX_GPIO_Init(void)
+{
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+}
+
+/*=========================================
+ * USART1 INIT
+ *=========================================*/
+
+void MX_USART1_UART_Init(void)
+{
+    huart1.Instance = USART1;
+
+    huart1.Init.BaudRate = UART_BAUDRATE;
+
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+
+    huart1.Init.StopBits = UART_STOPBITS_1;
+
+    huart1.Init.Parity = UART_PARITY_NONE;
+
+    huart1.Init.Mode = UART_MODE_TX_RX;
+
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+
+    huart1.Init.OneBitSampling =
+        UART_ONE_BIT_SAMPLE_DISABLE;
+
+    huart1.AdvancedInit.AdvFeatureInit =
+        UART_ADVFEATURE_NO_INIT;
+
+    if (HAL_UART_Init(&huart1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/*=========================================
+ * SYSTEM CLOCK 216 MHz
+ *=========================================*/
+
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+
+    __HAL_PWR_VOLTAGESCALING_CONFIG(
+        PWR_REGULATOR_VOLTAGE_SCALE1
+    );
+
+    RCC_OscInitStruct.OscillatorType =
+        RCC_OSCILLATORTYPE_HSI;
+
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+
+    RCC_OscInitStruct.HSICalibrationValue =
+        RCC_HSICALIBRATION_DEFAULT;
+
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+
+    RCC_OscInitStruct.PLL.PLLSource =
+        RCC_PLLSOURCE_HSI;
+
+    RCC_OscInitStruct.PLL.PLLM = 8;
+
+    RCC_OscInitStruct.PLL.PLLN = 216;
+
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+
+    RCC_OscInitStruct.PLL.PLLQ = 9;
+
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    if (HAL_PWREx_EnableOverDrive() != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    RCC_ClkInitStruct.ClockType =
+        RCC_CLOCKTYPE_HCLK |
+        RCC_CLOCKTYPE_SYSCLK |
+        RCC_CLOCKTYPE_PCLK1 |
+        RCC_CLOCKTYPE_PCLK2;
+
+    RCC_ClkInitStruct.SYSCLKSource =
+        RCC_SYSCLKSOURCE_PLLCLK;
+
+    RCC_ClkInitStruct.AHBCLKDivider =
+        RCC_SYSCLK_DIV1;
+
+    RCC_ClkInitStruct.APB1CLKDivider =
+        RCC_HCLK_DIV4;
+
+    RCC_ClkInitStruct.APB2CLKDivider =
+        RCC_HCLK_DIV2;
+
+    if (
+        HAL_RCC_ClockConfig(
+            &RCC_ClkInitStruct,
+            FLASH_LATENCY_7
+        ) != HAL_OK
+    )
+    {
+        Error_Handler();
+    }
+}
+
+/*=========================================
+ * ERROR HANDLER
+ *=========================================*/
+
+void Error_Handler(void)
+{
+    __disable_irq();
+
+    while (1)
+    {
+    }
+}
+
+/*=========================================
+ * MAIN
+ *=========================================*/
+
+int main(void)
+{
+    uint32_t now;
+
+    HAL_Init();
+
+    SystemClock_Config();
+
+    MX_GPIO_Init();
+
+    MX_USART1_UART_Init();
+
+    MX_LWIP_Init();
+
+    UDP_Server_Init();
+
+    /*
+     * PA9 UART test:
+     * Send character 'k' at startup.
+     */
+
+    {
+        uint8_t test_character = 'k';
+
+        UART_Send_Bytes(
+            &test_character,
+            1
+        );
+    }
+
+    last_udp_tick = HAL_GetTick();
+
+    while (1)
+    {
+        /*
+         * LwIP polling.
+         * Required for NO_SYS = 1.
+         */
+
+        MX_LWIP_Process();
+
+        now = HAL_GetTick();
+
+        /*
+         * Communication watchdog.
+         *
+         * This code does not invent a stop command
+         * for the Hoverboard protocol.
+         */
+
+        if (
+            udp_received &&
+            (now - last_udp_tick > UDP_TIMEOUT_MS)
+        )
+        {
+            udp_received = 0;
+        }
+    }
+}

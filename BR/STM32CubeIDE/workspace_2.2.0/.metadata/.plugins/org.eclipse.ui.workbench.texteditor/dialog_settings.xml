@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="java.lang.Class">
+		<list key="findhistory">
+			<item value="tmpreg1 |= ((PHYAddr &lt;&lt; 11U) &amp; ETH_MACMIIAR_PA);"/>
+			<item value="phy_scan_done = 1;"/>
+			<item value="debug_phy_autoneg = debug_phy_bsr_autoneg;"/>
+			<item value="debug_phy_autoneg ="/>
+			<item value="debug_phy_bmcr = phy_bmcr_check;"/>
+			<item value="debug_phy_bmcr = phy_bmcr;"/>
+			<item value="debug_test_bsr_mask "/>
+			<item value="MPU "/>
+			<item value="udp_server_callback"/>
+			<item value="phy_scan_don"/>
+			<item value="phy_scan"/>
+			<item value="uint32_t speed;"/>
+			<item value="ETH_HandleTypeDef heth;"/>
+			<item value="HAL_ETH_ReadPHYRegister("/>
+		</list>
+	</section>
+	<section name="org.eclipse.ui.texteditor.GotoLineAction$GotoLineDialog_dialogBounds">
+		<item key="DIALOG_X_ORIGIN" value="686"/>
+		<item key="DIALOG_Y_ORIGIN" value="326"/>
+	</section>
+</section>

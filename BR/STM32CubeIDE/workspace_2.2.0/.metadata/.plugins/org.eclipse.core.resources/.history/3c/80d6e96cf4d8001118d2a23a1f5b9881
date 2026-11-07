@@ -1,0 +1,403 @@
+/* USER CODE BEGIN Header */
+/**
+ * ============================================================================
+ * @file           : main.c
+ * @brief          : Ethernet UDP to Hoverboard UART Bridge for STM32F767ZIT6
+ * ============================================================================
+ * System Architecture:
+ *   Ubuntu MiniPC ---> [ Ethernet UDP (192.168.1.100:5000) ] ---> STM32F767ZIT6
+ *                                                                    |
+ *                                                                    | USART1 (PA9/PA10)
+ *                                                                    v
+ *                                                             Hoverboard FRONT (STM32F103)
+ *
+ * UDP Payload Format (8 bytes):
+ *   - Byte 0-1: FL int16_t (mm/s)
+ *   - Byte 2-3: FR int16_t (mm/s)
+ *   - Byte 4-5: RL int16_t (mm/s - ignored)
+ *   - Byte 6-7: RR int16_t (mm/s - ignored)
+ *
+ * Hoverboard UART Protocol:
+ *   - Baudrate : 115200
+ *   - Start    : 0xABCD
+ *   - Checksum : XOR
+ *   - Packet   : 8 bytes
+ * ============================================================================
+ */
+/* USER CODE END Header */
+
+/* Includes ----------------------------------------------------------*/
+#include "main.h"
+#include "lwip.h"
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+#include "lwip/ip_addr.h"
+
+#include <stdint.h>
+#include <string.h>
+
+/* Private defines ---------------------------------------------------*/
+#define UDP_SERVER_PORT          5000
+#define UDP_PACKET_SIZE          8
+#define UDP_TIMEOUT_MS           200
+
+#define HOVERBOARD_START_FRAME   0xABCD
+#define MAX_WHEEL_SPEED_MM_S     1300
+#define WHEEL_DIAMETER_MM        160.0f
+#define HOVERBOARD_MAX_RPM       1000.0f
+#define CONTROL_PERIOD_MS        20
+
+/* UART handle -------------------------------------------------------*/
+UART_HandleTypeDef huart1;
+
+/* Private variables -------------------------------------------------*/
+static struct udp_pcb *udp_server_pcb = NULL;
+
+static volatile int16_t wheel_FL = 0;
+static volatile int16_t wheel_FR = 0;
+
+static volatile uint32_t last_udp_tick = 0;
+static volatile uint8_t has_received_packet = 0; // Cờ đánh dấu đã nhận gói tin đầu tiên
+
+/* Function prototypes -----------------------------------------------*/
+static void MPU_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART1_UART_Init(void);
+void SystemClock_Config(void);
+void Error_Handler(void);
+
+static int16_t read_int16_le(const uint8_t *data);
+static int16_t convert_speed_to_command(int16_t speed);
+static void send_hoverboard_command(UART_HandleTypeDef *huart, int16_t left, int16_t right);
+static void send_stop_command(void);
+static void udp_server_init(void);
+static void udp_server_callback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
+
+/* Read signed int16 little endian -----------------------------------*/
+static int16_t read_int16_le(const uint8_t *data)
+{
+    uint16_t value;
+    value = (uint16_t)data[0];
+    value |= ((uint16_t)data[1] << 8);
+    return (int16_t)value;
+}
+
+/* Convert wheel speed mm/s to Hoverboard command --------------------*/
+static int16_t convert_speed_to_command(int16_t speed)
+{
+    float rpm;
+    float command;
+
+    /* Wheel diameter = 160 mm. RPM = v * 60 / (pi * D) */
+    rpm = ((float)speed * 60.0f) / (3.14159265f * WHEEL_DIAMETER_MM);
+
+    /* Convert RPM to normalized command (HOVERBOARD_MAX_RPM = 1000) */
+    command = rpm * 1000.0f / HOVERBOARD_MAX_RPM;
+
+    if (command > 1000.0f)  command = 1000.0f;
+    if (command < -1000.0f) command = -1000.0f;
+
+    return (int16_t)command;
+}
+
+/* Send one Hoverboard command ---------------------------------------*/
+static void send_hoverboard_command(UART_HandleTypeDef *huart, int16_t left, int16_t right)
+{
+    uint8_t packet[8];
+    int32_t speed;
+    int32_t steer;
+    uint16_t checksum;
+
+    /*
+     * Mixer convention:
+     *   Left  = speed + steer
+     *   Right = speed - steer
+     * Inverse:
+     *   speed = (left + right) / 2
+     *   steer = (left - right) / 2
+     */
+    speed = ((int32_t)left + (int32_t)right) / 2;
+    steer = ((int32_t)left - (int32_t)right) / 2;
+
+    /* Limit speed & steer */
+    if (speed > 1000)   speed = 1000;
+    if (speed < -1000)  speed = -1000;
+    if (steer > 1000)   steer = 1000;
+    if (steer < -1000)  steer = -1000;
+
+    /* Calculate XOR checksum */
+    checksum = (uint16_t)HOVERBOARD_START_FRAME
+             ^ (uint16_t)(int16_t)steer
+             ^ (uint16_t)(int16_t)speed;
+
+    /* Packet format (Little Endian):
+     * Byte 0-1: Start frame (0xABCD -> 0xCD, 0xAB)
+     * Byte 2-3: Steer
+     * Byte 4-5: Speed
+     * Byte 6-7: Checksum
+     */
+    packet[0] = 0xCD;
+    packet[1] = 0xAB;
+
+    packet[2] = (uint8_t)((uint16_t)(int16_t)steer);
+    packet[3] = (uint8_t)(((uint16_t)(int16_t)steer) >> 8);
+
+    packet[4] = (uint8_t)((uint16_t)(int16_t)speed);
+    packet[5] = (uint8_t)(((uint16_t)(int16_t)speed) >> 8);
+
+    packet[6] = (uint8_t)checksum;
+    packet[7] = (uint8_t)(checksum >> 8);
+
+    /* Transmit UART */
+    if (huart != NULL)
+    {
+        HAL_UART_Transmit(huart, packet, sizeof(packet), 10);
+    }
+}
+
+/* Stop FRONT Hoverboard ---------------------------------------------*/
+static void send_stop_command(void)
+{
+    send_hoverboard_command(&huart1, 0, 0);
+}
+
+/* UDP receive callback ----------------------------------------------*/
+static void udp_server_callback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
+{
+    uint8_t data[UDP_PACKET_SIZE];
+    int16_t FL;
+    int16_t FR;
+    u16_t copied;
+
+    (void)arg;
+    (void)upcb;
+    (void)addr;
+    (void)port;
+
+    if (p == NULL) return;
+
+    /* Require exactly 8 bytes */
+    if (p->tot_len != UDP_PACKET_SIZE)
+    {
+        pbuf_free(p);
+        return;
+    }
+
+    copied = pbuf_copy_partial(p, data, UDP_PACKET_SIZE, 0);
+    pbuf_free(p);
+
+    if (copied != UDP_PACKET_SIZE) return;
+
+    /* Decode front wheel speeds (FL, FR) */
+    FL = read_int16_le(&data[0]);
+    FR = read_int16_le(&data[2]);
+
+    /* Check requested speed bounds */
+    if (FL > MAX_WHEEL_SPEED_MM_S || FL < -MAX_WHEEL_SPEED_MM_S ||
+        FR > MAX_WHEEL_SPEED_MM_S || FR < -MAX_WHEEL_SPEED_MM_S)
+    {
+        return;
+    }
+
+    /* Update wheel commands */
+    wheel_FL = convert_speed_to_command(FL);
+    wheel_FR = convert_speed_to_command(FR);
+
+    /* Update watchdog */
+    last_udp_tick = HAL_GetTick();
+    has_received_packet = 1;
+}
+
+/* UDP server initialization ----------------------------------------*/
+static void udp_server_init(void)
+{
+    err_t err;
+
+    udp_server_pcb = udp_new();
+    if (udp_server_pcb == NULL)
+    {
+        Error_Handler();
+    }
+
+    err = udp_bind(udp_server_pcb, IP_ADDR_ANY, UDP_SERVER_PORT);
+    if (err != ERR_OK)
+    {
+        udp_remove(udp_server_pcb);
+        udp_server_pcb = NULL;
+        Error_Handler();
+    }
+
+    udp_recv(udp_server_pcb, udp_server_callback, NULL);
+}
+
+/* Main --------------------------------------------------------------*/
+int main(void)
+{
+    uint32_t last_control_tick = 0;
+    uint32_t now;
+    uint32_t last_packet;
+    uint8_t received_flag;
+    int16_t FL;
+    int16_t FR;
+
+    MPU_Config();
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_USART1_UART_Init();
+    MX_LWIP_Init();
+
+    udp_server_init();
+
+    send_stop_command();
+
+    while (1)
+    {
+        /* LwIP NO_SYS = 1: Process network packets continuously */
+        MX_LWIP_Process();
+
+        now = HAL_GetTick();
+
+        /* Control period = 20 ms */
+        if ((now - last_control_tick) >= CONTROL_PERIOD_MS)
+        {
+            last_control_tick = now;
+
+            /* Read shared variables safely */
+            __disable_irq();
+            FL = wheel_FL;
+            FR = wheel_FR;
+            last_packet = last_udp_tick;
+            received_flag = has_received_packet;
+            __enable_irq();
+
+            /* UDP watchdog (200 ms timeout): stop motors if no packet arrives after connection started */
+            if (received_flag && ((now - last_packet) > UDP_TIMEOUT_MS))
+            {
+                FL = 0;
+                FR = 0;
+
+                __disable_irq();
+                wheel_FL = 0;
+                wheel_FR = 0;
+                has_received_packet = 0;
+                __enable_irq();
+            }
+
+            /* Send command to FRONT Hoverboard via USART1 (PA9=TX, PA10=RX) */
+            send_hoverboard_command(&huart1, FL, FR);
+        }
+    }
+}
+
+/* System Clock Configuration ---------------------------------------*/
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
+    /* HSI = 16 MHz, PLL -> SYSCLK = 216 MHz */
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM = 8;
+    RCC_OscInitStruct.PLL.PLLN = 216;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 9;
+
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    if (HAL_PWREx_EnableOverDrive() != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* GPIO Initialization ----------------------------------------------*/
+static void MX_GPIO_Init(void)
+{
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+}
+
+/* USART1 Initialization --------------------------------------------*/
+static void MX_USART1_UART_Init(void)
+{
+    huart1.Instance = USART1;
+    huart1.Init.BaudRate = 115200;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+    huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+    huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+
+    if (HAL_UART_Init(&huart1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* MPU Configuration -----------------------------------------------*/
+static void MPU_Config(void)
+{
+    MPU_Region_InitTypeDef MPU_InitStruct = {0};
+
+    HAL_MPU_Disable();
+
+    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+    MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+    MPU_InitStruct.BaseAddress = 0x00000000;
+    MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+    MPU_InitStruct.SubRegionDisable = 0x87;
+    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+    MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+    MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+
+    HAL_MPU_ConfigRegion(&MPU_InitStruct);
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+}
+
+/* Error Handler ----------------------------------------------------*/
+void Error_Handler(void)
+{
+    __disable_irq();
+    while (1)
+    {
+        /* Stay here on error */
+    }
+}
+
+#ifdef USE_FULL_ASSERT
+void assert_failed(uint8_t *file, uint32_t line)
+{
+    (void)file;
+    (void)line;
+}
+#endif

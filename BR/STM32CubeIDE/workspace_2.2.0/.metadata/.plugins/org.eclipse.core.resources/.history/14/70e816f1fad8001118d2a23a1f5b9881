@@ -1,0 +1,269 @@
+#include "main.h"
+#include "lwip.h"
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+
+#include <stdint.h>
+
+/* ================ CONFIGURATION ================ */
+
+#define UDP_PORT              5000U
+#define UDP_FRAME_SIZE        8U
+
+#define UDP_TIMEOUT_MS        200U
+#define UART_TIMEOUT_MS       10U
+
+#define HOVERBOARD_START      0xABCDU
+
+/* ================ UART ================ */
+
+/* USART1: PA9 TX, PA10 RX */
+UART_HandleTypeDef huart1;
+
+/* ================ UDP ================ */
+
+static struct udp_pcb *udp_pcb = NULL;
+
+/* ================ WATCHDOG ================ */
+
+static uint32_t last_udp_tick = 0;
+static uint8_t motor_command_active = 0;
+
+/* ================ FUNCTION PROTOTYPES ================ */
+
+void SystemClock_Config(void);
+void Error_Handler(void);
+
+static void UDP_Server_Init(void);
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+);
+
+static uint16_t Read_U16_LE(const uint8_t *data);
+static int16_t Read_I16_LE(const uint8_t *data);
+
+static void Hoverboard_Send_Frame(const uint8_t *frame);
+static void Hoverboard_Send_Stop(void);
+
+/* ================ LITTLE ENDIAN ================ */
+
+static uint16_t Read_U16_LE(const uint8_t *data)
+{
+    return (uint16_t)data[0]
+         | ((uint16_t)data[1] << 8);
+}
+
+static int16_t Read_I16_LE(const uint8_t *data)
+{
+    return (int16_t)Read_U16_LE(data);
+}
+
+/* ================ UART TRANSMISSION ================ */
+
+static void Hoverboard_Send_Frame(const uint8_t *frame)
+{
+    HAL_UART_Transmit(
+        &huart1,
+        (uint8_t *)frame,
+        UDP_FRAME_SIZE,
+        UART_TIMEOUT_MS
+    );
+}
+
+/* ================ STOP COMMAND ================ */
+
+static void Hoverboard_Send_Stop(void)
+{
+    uint8_t frame[8];
+
+    uint16_t checksum;
+
+    checksum = HOVERBOARD_START;
+
+    frame[0] = 0xCD;
+    frame[1] = 0xAB;
+
+    frame[2] = 0x00;
+    frame[3] = 0x00;
+
+    frame[4] = 0x00;
+    frame[5] = 0x00;
+
+    frame[6] = (uint8_t)checksum;
+    frame[7] = (uint8_t)(checksum >> 8);
+
+    Hoverboard_Send_Frame(frame);
+}
+
+/* ================ UDP RECEIVE CALLBACK ================ */
+
+static void UDP_Receive_Callback(
+    void *arg,
+    struct udp_pcb *pcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+)
+{
+    uint8_t frame[UDP_FRAME_SIZE];
+
+    uint16_t start;
+    uint16_t checksum;
+    uint16_t expected_checksum;
+
+    int16_t steer;
+    int16_t speed;
+
+    u16_t copied;
+
+    (void)arg;
+    (void)pcb;
+    (void)addr;
+    (void)port;
+
+    if (p == NULL)
+        return;
+
+    if (p->tot_len != UDP_FRAME_SIZE)
+    {
+        pbuf_free(p);
+        return;
+    }
+
+    copied = pbuf_copy_partial(
+        p,
+        frame,
+        UDP_FRAME_SIZE,
+        0
+    );
+
+    pbuf_free(p);
+
+    if (copied != UDP_FRAME_SIZE)
+        return;
+
+    /* Read frame */
+
+    start = Read_U16_LE(&frame[0]);
+    steer = Read_I16_LE(&frame[2]);
+    speed = Read_I16_LE(&frame[4]);
+    checksum = Read_U16_LE(&frame[6]);
+
+    /* Check start frame */
+
+    if (start != HOVERBOARD_START)
+        return;
+
+    /* Check command range */
+
+    if ((steer > 1000) || (steer < -1000))
+        return;
+
+    if ((speed > 1000) || (speed < -1000))
+        return;
+
+    /* Check XOR checksum */
+
+    expected_checksum =
+        HOVERBOARD_START
+        ^ (uint16_t)steer
+        ^ (uint16_t)speed;
+
+    if (checksum != expected_checksum)
+        return;
+
+    /* Forward the original 8-byte frame */
+
+    Hoverboard_Send_Frame(frame);
+
+    last_udp_tick = HAL_GetTick();
+
+    if ((steer == 0) && (speed == 0))
+        motor_command_active = 0;
+    else
+        motor_command_active = 1;
+}
+
+/* ================ UDP SERVER ================ */
+
+static void UDP_Server_Init(void)
+{
+    err_t err;
+
+    udp_pcb = udp_new();
+
+    if (udp_pcb == NULL)
+        Error_Handler();
+
+    err = udp_bind(
+        udp_pcb,
+        IP_ADDR_ANY,
+        UDP_PORT
+    );
+
+    if (err != ERR_OK)
+    {
+        udp_remove(udp_pcb);
+        udp_pcb = NULL;
+        Error_Handler();
+    }
+
+    udp_recv(
+        udp_pcb,
+        UDP_Receive_Callback,
+        NULL
+    );
+}
+
+/* ================ MAIN ================ */
+
+int main(void)
+{
+    uint32_t now;
+
+    HAL_Init();
+
+    SystemClock_Config();
+
+    MX_GPIO_Init();
+
+    MX_USART1_UART_Init();
+
+    MX_LWIP_Init();
+
+    UDP_Server_Init();
+
+    /* Stop at startup */
+    Hoverboard_Send_Stop();
+
+    last_udp_tick = HAL_GetTick();
+
+    while (1)
+    {
+        /*
+         * Required when LwIP uses NO_SYS = 1.
+         */
+        MX_LWIP_Process();
+
+        now = HAL_GetTick();
+
+        /*
+         * Watchdog:
+         * No valid UDP command for 200 ms -> stop.
+         */
+        if (
+            motor_command_active &&
+            ((now - last_udp_tick) > UDP_TIMEOUT_MS)
+        )
+        {
+            Hoverboard_Send_Stop();
+
+            motor_command_active = 0;
+        }
+    }
+}

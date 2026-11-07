@@ -1,0 +1,544 @@
+/* USER CODE BEGIN Header */
+/*
+ * STM32F767ZIT6
+ *
+ * Ubuntu Ethernet UDP
+ *          |
+ *          v
+ * STM32F767ZIT6
+ *          |
+ *          +---- USART1 PA9/PA10 ---- Hoverboard FRONT STM32F103
+ *          |
+ *          +---- USART6 PC6/PC7 ---- Hoverboard REAR GD32F103
+ *
+ * UDP:
+ *   STM32 IP: 192.168.1.100
+ *   Port:     5000
+ *
+ * UDP payload: 8 bytes
+ *   FL: int16_t mm/s
+ *   FR: int16_t mm/s
+ *   RL: int16_t mm/s
+ *   RR: int16_t mm/s
+ *
+ * Hoverboard VARIANT_USART:
+ *   Baudrate: 115200
+ *   Start:    0xABCD
+ *   Checksum: XOR
+ *   Packet:   8 bytes
+ */
+/* USER CODE END Header */
+
+
+/* Includes ----------------------------------------------------------*/
+
+#include "main.h"
+#include "lwip.h"
+
+#include "lwip/udp.h"
+#include "lwip/pbuf.h"
+#include "lwip/ip_addr.h"
+
+#include <stdint.h>
+#include <string.h>
+
+
+/* Private defines ---------------------------------------------------*/
+
+#define UDP_SERVER_PORT          5000
+
+#define UDP_PACKET_SIZE          8
+
+#define UDP_TIMEOUT_MS           200
+
+#define HOVERBOARD_START_FRAME   0xABCD
+
+#define MAX_WHEEL_SPEED_MM_S     1300
+
+#define WHEEL_DIAMETER_MM        160.0f
+
+/*
+ * Firmware Hoverboard của bạn đang đặt:
+ *
+ * N_MOT_MAX = 1000 rpm
+ *
+ * Đây là giá trị giới hạn RPM cần đối chiếu
+ * với cấu hình thực tế của hai bo.
+ */
+
+#define HOVERBOARD_MAX_RPM       1000.0f
+
+#define CONTROL_PERIOD_MS        20
+
+
+/* External UART handles --------------------------------------------*/
+
+/*
+ * Các biến này được khai báo trong usart.c của CubeMX.
+ */
+
+extern UART_HandleTypeDef huart1;
+
+
+/* Private variables -------------------------------------------------*/
+
+static struct udp_pcb *udp_server_pcb = NULL;
+
+static volatile int16_t wheel_FL = 0;
+static volatile int16_t wheel_FR = 0;
+static volatile int16_t wheel_RL = 0;
+static volatile int16_t wheel_RR = 0;
+
+static volatile uint32_t last_udp_tick = 0;
+
+static volatile uint8_t command_received = 0;
+
+
+/* Function prototypes -----------------------------------------------*/
+static void MPU_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART1_UART_Init(void);
+void SystemClock_Config(void);
+
+void Error_Handler(void);
+
+static int16_t read_int16_le(const uint8_t *data);
+
+static int16_t convert_speed_to_command(int16_t speed);
+
+static void send_hoverboard_command(
+    UART_HandleTypeDef *huart,
+    int16_t left,
+    int16_t right
+);
+
+static void send_stop_command(void);
+
+static void udp_server_init(void);
+
+static void udp_server_callback(
+    void *arg,
+    struct udp_pcb *upcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+);
+
+
+/* Read signed int16 little endian -----------------------------------*/
+
+static int16_t read_int16_le(const uint8_t *data)
+{
+    uint16_t value;
+
+    value = (uint16_t)data[0];
+
+    value |= ((uint16_t)data[1] << 8);
+
+    return (int16_t)value;
+}
+
+
+/* Convert mm/s to Hoverboard command -------------------------------*/
+
+static int16_t convert_speed_to_command(int16_t speed)
+{
+    float rpm;
+    float command;
+
+    /*
+     * Bánh xe đường kính 160 mm.
+     *
+     * RPM = v * 60 / (pi * D)
+     */
+
+    rpm = ((float)speed * 60.0f) /
+          (3.14159265f * WHEEL_DIAMETER_MM);
+
+    /*
+     * Quy đổi RPM sang lệnh chuẩn hóa -1000 ... +1000.
+     */
+
+    command = rpm * 1000.0f / HOVERBOARD_MAX_RPM;
+
+    if (command > 1000.0f)
+        command = 1000.0f;
+
+    if (command < -1000.0f)
+        command = -1000.0f;
+
+    return (int16_t)command;
+}
+
+
+/* Send one Hoverboard command ---------------------------------------*/
+
+static void send_hoverboard_command(
+    UART_HandleTypeDef *huart,
+    int16_t left,
+    int16_t right
+)
+{
+    uint8_t packet[8];
+
+    int32_t speed;
+    int32_t steer;
+
+    uint16_t checksum;
+
+    /*
+     * Mixer convention:
+     *
+     * Left  = speed + steer
+     * Right = speed - steer
+     *
+     * Inverse:
+     *
+     * speed = (left + right) / 2
+     * steer = (left - right) / 2
+     */
+
+    speed = ((int32_t)left + (int32_t)right) / 2;
+
+    steer = ((int32_t)left - (int32_t)right) / 2;
+
+
+    /* Limit speed */
+
+    if (speed > 1000)
+        speed = 1000;
+
+    if (speed < -1000)
+        speed = -1000;
+
+
+    /* Limit steer */
+
+    if (steer > 1000)
+        steer = 1000;
+
+    if (steer < -1000)
+        steer = -1000;
+
+
+    /* Calculate checksum */
+
+    checksum = (uint16_t)HOVERBOARD_START_FRAME
+             ^ (uint16_t)(int16_t)steer
+             ^ (uint16_t)(int16_t)speed;
+
+
+    /*
+     * Packet:
+     *
+     * start
+     * steer
+     * speed
+     * checksum
+     *
+     * Little endian
+     */
+
+    packet[0] = 0xCD;
+    packet[1] = 0xAB;
+
+
+    /* Steer */
+
+    packet[2] = (uint8_t)((uint16_t)(int16_t)steer);
+
+    packet[3] = (uint8_t)(
+        ((uint16_t)(int16_t)steer) >> 8
+    );
+
+
+    /* Speed */
+
+    packet[4] = (uint8_t)((uint16_t)(int16_t)speed);
+
+    packet[5] = (uint8_t)(
+        ((uint16_t)(int16_t)speed) >> 8
+    );
+
+
+    /* Checksum */
+
+    packet[6] = (uint8_t)checksum;
+
+    packet[7] = (uint8_t)(checksum >> 8);
+
+
+    /* Transmit UART */
+
+    if (huart != NULL)
+    {
+        HAL_UART_Transmit(
+            huart,
+            packet,
+            sizeof(packet),
+            10
+        );
+    }
+}
+
+
+/* Stop both Hoverboard controllers -------------------------------*/
+
+static void send_stop_command(void)
+{
+    send_hoverboard_command(&huart1, 0, 0);
+}
+
+
+/* UDP receive callback ---------------------------------------------*/
+
+static void udp_server_callback(
+    void *arg,
+    struct udp_pcb *upcb,
+    struct pbuf *p,
+    const ip_addr_t *addr,
+    u16_t port
+)
+{
+    uint8_t data[UDP_PACKET_SIZE];
+
+    int16_t FL;
+    int16_t FR;
+
+
+    u16_t copied;
+
+    (void)arg;
+    (void)upcb;
+    (void)addr;
+    (void)port;
+
+
+    if (p == NULL)
+        return;
+
+
+    /* Require exactly 8 bytes */
+
+    if (p->tot_len != UDP_PACKET_SIZE)
+    {
+        pbuf_free(p);
+        return;
+    }
+
+
+    /* Copy UDP payload */
+
+    copied = pbuf_copy_partial(
+        p,
+        data,
+        UDP_PACKET_SIZE,
+        0
+    );
+
+    pbuf_free(p);
+
+
+    if (copied != UDP_PACKET_SIZE)
+        return;
+
+
+    /* Decode four wheel speeds */
+
+    FL = read_int16_le(&data[0]);
+
+    FR = read_int16_le(&data[2]);
+
+
+
+    /* Check requested speed */
+
+    if (
+        FL > MAX_WHEEL_SPEED_MM_S ||
+        FL < -MAX_WHEEL_SPEED_MM_S ||
+
+        FR > MAX_WHEEL_SPEED_MM_S ||
+        FR < -MAX_WHEEL_SPEED_MM_S
+
+        )
+    {
+        return;
+    }
+
+
+    /*
+     * Update wheel commands.
+     * Callback runs in LwIP context.
+     */
+
+    wheel_FL = convert_speed_to_command(FL);
+
+    wheel_FR = convert_speed_to_command(FR);
+
+
+
+
+    /* Update watchdog */
+
+    last_udp_tick = HAL_GetTick();
+
+    command_received = 1;
+}
+
+
+/* UDP server initialization ----------------------------------------*/
+
+static void udp_server_init(void)
+{
+    err_t err;
+
+
+    /* Create UDP PCB */
+
+    udp_server_pcb = udp_new();
+
+    if (udp_server_pcb == NULL)
+    {
+        Error_Handler();
+    }
+
+
+    /* Bind port 5000 */
+
+    err = udp_bind(
+        udp_server_pcb,
+        IP_ADDR_ANY,
+        UDP_SERVER_PORT
+    );
+
+    if (err != ERR_OK)
+    {
+        udp_remove(udp_server_pcb);
+
+        udp_server_pcb = NULL;
+
+        Error_Handler();
+    }
+
+
+    /* Register callback */
+
+    udp_recv(
+        udp_server_pcb,
+        udp_server_callback,
+        NULL
+    );
+}
+
+
+/* Main --------------------------------------------------------------*/
+
+int main(void)
+{
+    uint32_t last_control_tick = 0;
+    uint32_t now;
+    uint32_t last_packet;
+
+    int16_t FL;
+    int16_t FR;
+
+    /*
+     * MPU configuration
+     */
+    MPU_Config();
+
+    /*
+     * HAL initialization
+     */
+    HAL_Init();
+
+    /*
+     * System clock: 216 MHz
+     */
+    SystemClock_Config();
+
+    /*
+     * GPIO
+     */
+    MX_GPIO_Init();
+
+    /*
+     * USART1
+     */
+    MX_USART1_UART_Init();
+
+    /*
+     * Ethernet and LwIP
+     */
+    MX_LWIP_Init();
+
+    /*
+     * UDP server port 5000
+     */
+    udp_server_init();
+
+    /*
+     * Initial stop
+     */
+    send_stop_command();
+
+    last_udp_tick = HAL_GetTick();
+
+    /*
+     * Main loop
+     */
+    while (1)
+    {
+        /*
+         * LwIP NO_SYS = 1
+         */
+        MX_LWIP_Process();
+
+        now = HAL_GetTick();
+
+        /*
+         * Control period: 20 ms
+         */
+        if ((now - last_control_tick) >= CONTROL_PERIOD_MS)
+        {
+            last_control_tick = now;
+
+            __disable_irq();
+
+            FL = wheel_FL;
+            FR = wheel_FR;
+
+            last_packet = last_udp_tick;
+
+            __enable_irq();
+
+            /*
+             * UDP watchdog: 200 ms
+             */
+            if (command_received &&
+                ((now - last_packet) > UDP_TIMEOUT_MS))
+            {
+                FL = 0;
+                FR = 0;
+
+                wheel_FL = 0;
+                wheel_FR = 0;
+
+                command_received = 0;
+            }
+
+            /*
+             * FRONT Hoverboard
+             *
+             * USART1:
+             * PA9  TX
+             * PA10 RX
+             */
+            send_hoverboard_command(
+                &huart1,
+                FL,
+                FR
+            );
+        }
+    }
+}

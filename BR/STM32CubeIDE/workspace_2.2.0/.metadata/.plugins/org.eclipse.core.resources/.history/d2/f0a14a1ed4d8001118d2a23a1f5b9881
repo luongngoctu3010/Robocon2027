@@ -1,0 +1,135 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : UART Echo Test (Ubuntu <-> STM32F767 via ST-LINK VCP)
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+#include "main.h"
+
+/* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart3;
+uint8_t rx_data;
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART3_UART_Init(void);
+void Error_Handler(void);
+
+/* Main Application ----------------------------------------------------------*/
+int main(void)
+{
+    /* 1. Khởi tạo thư viện HAL, cấu hình Flash và Tick timer */
+    HAL_Init();
+
+    /* 2. Cấu hình xung nhịp hệ thống */
+    SystemClock_Config();
+
+    /* 3. Khởi tạo chân GPIO cho UART */
+    MX_GPIO_Init();
+
+    /* 4. Khởi tạo ngoại vi USART3 (115200 baud) */
+    MX_USART3_UART_Init();
+
+    /* 5. Kích hoạt ngắt nhận từng byte từ máy tính Ubuntu */
+    if (HAL_UART_Receive_IT(&huart3, &rx_data, 1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /* Vòng lặp vô hạn chờ ngắt UART */
+    while (1)
+    {
+    }
+}
+
+/* UART Receive Complete Callback (Xử lý ngắt nhận dữ liệu) ------------------*/
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART3)
+    {
+        /* Gửi trả lại (Echo) chính ký tự vừa nhận được về máy tính */
+        HAL_UART_Transmit(&huart3, &rx_data, 1, 100);
+
+        /* Tiếp tục lắng nghe ký tự tiếp theo từ máy tính */
+        if (HAL_UART_Receive_IT(&huart3, &rx_data, 1) != HAL_OK)
+        {
+            Error_Handler();
+        }
+    }
+}
+
+/* System Clock Configuration -----------------------------------------------*/
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+                                | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* GPIO Configuration --------------------------------------------------------*/
+static void MX_GPIO_Init(void)
+{
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+
+    /* USART3 GPIO Configuration: PD8 -> TX, PD9 -> RX (Nối cứng với ST-LINK VCP) */
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+}
+
+/* USART3 Initialization -----------------------------------------------------*/
+static void MX_USART3_UART_Init(void)
+{
+    huart3.Instance = USART3;
+    huart3.Init.BaudRate = 115200;
+    huart3.Init.WordLength = UART_WORDLENGTH_8B;
+    huart3.Init.StopBits = UART_STOPBITS_1;
+    huart3.Init.Parity = UART_PARITY_NONE;
+    huart3.Init.Mode = UART_MODE_TX_RX;
+    huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+    if (HAL_UART_Init(&huart3) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/* Error Handler -------------------------------------------------------------*/
+void Error_Handler(void)
+{
+    __disable_irq();
+    while (1)
+    {
+    }
+}

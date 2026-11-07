@@ -1,0 +1,155 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body - UART Bridge (PC to Hoverboard)
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+#include "main.h"
+#include <stdint.h>
+#include <string.h>
+
+/* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart1; // Kết nối xuống Hoverboard qua chân PA9 (TX) và PA10 (RX)
+UART_HandleTypeDef huart3; // Kết nối với Ubuntu PC qua cổng USB / ST-LINK VCP (PD8/PD9)
+
+#define START_FRAME     0xABCD
+
+typedef struct {
+    uint16_t start;
+    int16_t steer;
+    int16_t speed;
+    uint16_t checksum;
+} SerialCommand;
+
+SerialCommand incomingCommand;
+uint8_t pc_rx_buffer[8];  // Buffer nhận dữ liệu từ Ubuntu (qua USART3)
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_USART3_UART_Init(void);
+
+int main(void)
+{
+  HAL_Init();
+  SystemClock_Config();
+
+  MX_GPIO_Init();
+  MX_USART1_UART_Init(); // Khởi tạo UART1 nối xuống Hoverboard (PA9/PA10)
+  MX_USART3_UART_Init(); // Khởi tạo UART3 nối với Ubuntu (ST-LINK VCP)
+
+  /* USER CODE BEGIN 2 */
+  // Bắt đầu lắng nghe ngắt UART3 nhận dữ liệu từ Ubuntu PC truyền xuống qua cổng /dev/ttyACM0
+  HAL_UART_Receive_IT(&huart3, pc_rx_buffer, 8);
+  /* USER CODE END 2 */
+
+  while (1)
+  {
+    HAL_Delay(10);
+  }
+}
+
+/*
+ * Callback ngắt nhận UART hoàn tất
+ * Khi Ubuntu gửi đủ 8 bytes qua cổng USB (/dev/ttyACM0), hàm này sẽ chạy.
+ */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    // Kiểm tra dữ liệu đến từ Ubuntu thông qua USART3 (ST-LINK VCP)
+    if (huart->Instance == USART3) {
+        uint16_t incoming_start = (pc_rx_buffer[1] << 8) | pc_rx_buffer[0];
+
+        if (incoming_start == START_FRAME) {
+            incomingCommand.start = incoming_start;
+            incomingCommand.steer = (pc_rx_buffer[3] << 8) | pc_rx_buffer[2];
+            incomingCommand.speed = (pc_rx_buffer[5] << 8) | pc_rx_buffer[4];
+            incomingCommand.checksum = (pc_rx_buffer[7] << 8) | pc_rx_buffer[6];
+
+            uint16_t calculated_checksum = incomingCommand.start ^ incomingCommand.steer ^ incomingCommand.speed;
+
+            if (calculated_checksum == incomingCommand.checksum) {
+                // THÀNH CÔNG: Đã nhận đúng gói tin từ Ubuntu!
+                // Chuyển tiếp (Forward) y nguyên 8 bytes này qua USART1 (PA9/PA10) xuống Hoverboard
+                HAL_UART_Transmit(&huart1, pc_rx_buffer, 8, 100);
+            }
+        }
+
+        // Tiếp tục lắng nghe gói tin tiếp theo từ Ubuntu trên USART3
+        HAL_UART_Receive_IT(&huart3, pc_rx_buffer, 8);
+    }
+}
+
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+static void MX_USART1_UART_Init(void)
+{
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+static void MX_USART3_UART_Init(void)
+{
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+static void MX_GPIO_Init(void)
+{
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE(); // Cấp xung clock cho GPIOD (nếu dùng USART3 trên PD8/PD9)
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+}
+
+void Error_Handler(void)
+{
+  while(1) {}
+}

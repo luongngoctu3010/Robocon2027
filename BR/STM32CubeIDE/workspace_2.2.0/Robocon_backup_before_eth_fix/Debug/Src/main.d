@@ -1,0 +1,124 @@
+Src/main.o: ../Src/main.c ../Inc/main.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h \
+ ../Inc/stm32f7xx_hal_conf.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_def.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f767xx.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/core_cm7.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/cmsis_version.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/cmsis_compiler.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/cmsis_gcc.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/mpu_armv7.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Device/ST/STM32F7xx/Include/system_stm32f7xx.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc_ex.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_exti.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_gpio.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_gpio_ex.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dma.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dma_ex.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cortex.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_eth.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_flash.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_flash_ex.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_pwr.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_pwr_ex.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart_ex.h \
+ ../Inc/main.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/LWIP/App/lwip.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/opt.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/LWIP/Target/lwipopts.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/debug.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/arch.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/system/arch/cc.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/system/arch/cpu.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/mem.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/memp.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_std.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_priv.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/priv/mem_priv.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/stats.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/netif/etharp.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/etharp.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/pbuf.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/err.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip4_addr.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/def.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/netif.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip_addr.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip6_addr.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/def.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip4.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/ip4.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/ethernet.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/ieee.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/etharp.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/netif/ethernet.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/dhcp.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/timeouts.h \
+ /home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/LWIP/Target/ethernetif.h \
+ ../Inc/hoverboard.h
+../Inc/main.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h:
+../Inc/stm32f7xx_hal_conf.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_def.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f767xx.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/core_cm7.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/cmsis_version.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/cmsis_compiler.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/cmsis_gcc.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Include/mpu_armv7.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/CMSIS/Device/ST/STM32F7xx/Include/system_stm32f7xx.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc_ex.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_exti.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_gpio.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_gpio_ex.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dma.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dma_ex.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_cortex.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_eth.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_flash.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_flash_ex.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_pwr.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_pwr_ex.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart_ex.h:
+../Inc/main.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/LWIP/App/lwip.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/opt.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/LWIP/Target/lwipopts.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/debug.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/arch.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/system/arch/cc.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/system/arch/cpu.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/mem.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/memp.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_std.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_priv.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/priv/mem_priv.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/stats.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/netif/etharp.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/etharp.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/pbuf.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/err.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip4_addr.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/def.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/netif.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip_addr.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip6_addr.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/def.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/ip4.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/ip4.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/ethernet.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/ieee.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/prot/etharp.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/netif/ethernet.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/dhcp.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/Middlewares/Third_Party/LwIP/src/include/lwip/timeouts.h:
+/home/luongngoctu/STM32CubeIDE/workspace_2.2.0/Robocon/LWIP/Target/ethernetif.h:
+../Inc/hoverboard.h:

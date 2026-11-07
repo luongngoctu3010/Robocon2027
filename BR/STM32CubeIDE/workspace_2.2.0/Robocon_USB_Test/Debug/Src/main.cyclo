@@ -1,0 +1,13 @@
+../Src/main.c:197:13:USART1_Init	2
+../Src/main.c:248:16:ValidateCommand	3
+../Src/main.c:287:16:ValidateFeedback	3
+../Src/main.c:330:13:ProcessUARTByte	13
+../Src/main.c:468:6:HAL_UART_RxCpltCallback	3
+../Src/main.c:495:6:HAL_UART_ErrorCallback	3
+../Src/main.c:527:13:UDP_Receive_Callback	6
+../Src/main.c:630:13:UDP_Bridge_Init	3
+../Src/main.c:674:13:UDP_SendFeedback	7
+../Src/main.c:774:5:main	2
+../Src/main.c:839:6:SystemClock_Config	4
+../Src/main.c:921:6:MPU_Config	1
+../Src/main.c:960:6:Error_Handler	1
