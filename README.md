@@ -1,557 +1,394 @@
-# 🤖 ABU Robocon 2027
+# 🤖 ABU ROBOCON 2027 – TR & BR
 
-Project đồ án tốt nghiệp và phát triển robot tham gia **ABU Robocon 2027**.
+Repository lưu trữ mã nguồn, thiết kế phần cứng, phần mềm điều khiển và tài liệu kỹ thuật của dự án robot tham gia ABU Robocon 2027.
 
 Hệ thống gồm hai robot:
 
-* **TR – Transport Robot**
-* **BR – Building Robot**
-
-Kiến trúc điều khiển được chia thành hai tầng:
-
-```text
-┌──────────────────────────────────────────────┐
-│              HIGH-LEVEL SYSTEM               │
-│                                              │
-│ ROS 2 / SLAM / Nav2 / Computer Vision / AI  │
-│                Mini PC / PC                  │
-└──────────────────────┬───────────────────────┘
-                       │
-                 UART / USB / CAN
-                       │
-                       ▼
-┌──────────────────────────────────────────────┐
-│               LOW-LEVEL SYSTEM               │
-│                                              │
-│                    STM32                     │
-│                                              │
-│  Encoder │ PID │ PWM │ Motor │ GPIO │ I/O   │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼
-                 Motor Driver
-                       │
-                       ▼
-                     Motors
-```
+- **TR (Throwing Robot):** Robot điều khiển bằng tay thông qua tay cầm PS2.
+- **BR (Building Robot):** Robot tự động sử dụng Camera 3D, LiDAR, Mini PC, ROS 2 và hệ thống điều khiển STM32.
 
 ---
 
-# 1. 🤖 Robot System
+# 1. SYSTEM OVERVIEW
 
-## TR – Transport Robot
+Hệ thống được chia thành hai kiến trúc điều khiển độc lập:
 
-TR đảm nhiệm:
+| Robot | Chế độ hoạt động | Bộ điều khiển chính |
+|---|---|---|
+| TR | Điều khiển bằng tay | Arduino Mega 2560 |
+| BR | Điều khiển tự động | Mini PC + STM32F767ZIT6 |
 
-* Di chuyển trên sân.
-* Thu thập vật liệu.
-* Vận chuyển vật liệu.
-* Đưa block đến khu vực Transfer.
-* Vận chuyển Mustika.
-* Điều khiển các cơ cấu gắp và giao vật.
+## 1.1. TR – Throwing Robot
 
-Kiến trúc:
+TR sử dụng tay cầm PS2 để điều khiển chuyển động và các cơ cấu chấp hành.
+
+### Sơ đồ kiến trúc điều khiển
 
 ```text
-Controller
-     │
-     ▼
-   STM32
-     │
- ┌───┼─────────────┐
- │   │             │
-PID Encoder     Actuator
- │   │             │
- └───┼─────────────┘
-     │
-     ▼
-Motor Driver
-     │
-     ▼
-   Motors
+             PS2 CONTROLLER
+                    |
+                    | USB
+                    |
+                    v
+             MINI PC
+                    |
+                    | WiFi
+                    |
+                    v
+                 ESP32
+                    |
+                    | UART
+                    |
+                    v
+             ARDUINO MEGA 2560
+                    |
+          +---------+----------+
+          |                    |
+          v                    v
+    DRIVE SYSTEM          GRIPPER SYSTEM
+          |                    |
+     4 x IBT-2             VAN DIEN TU 5/2
+          |                    |
+     4 DC MOTORS           XI LANH KHI NEN
+          |                    |
+     4 MECANUM WHEELS      CO CAU GAP
+          |                    |
+          v                    v
+       ENCODERS          LIMIT SENSORS
+          |                    |
+          +---------+----------+
+                    |
+                    v
+             ARDUINO MEGA
 ```
 
-STM32 là bộ điều khiển thời gian thực chính của TR.
+### A. Hệ thống điều khiển chuyển động
+
+| Thành phần | Chức năng |
+|---|---|
+| PS2 Controller | Điều khiển robot bằng tay |
+| Mini PC | Tiếp nhận và xử lý tín hiệu điều khiển |
+| ESP32 | Truyền dữ liệu điều khiển qua WiFi |
+| Arduino Mega 2560 | Bộ điều khiển trung tâm TR |
+| IBT-2 | Driver điều khiển động cơ DC |
+| 4 DC Motors | Tạo chuyển động cho robot |
+| 4 Mecanum Wheels | Di chuyển đa hướng |
+| Encoders | Phản hồi tốc độ và số vòng quay động cơ |
+
+Arduino Mega 2560 nhận lệnh từ ESP32, xử lý tín hiệu điều khiển và xuất PWM/Direction đến 4 module IBT-2.
+
+Encoder cung cấp tín hiệu phản hồi để đo tốc độ và hỗ trợ điều khiển chuyển động.
+
+### B. Cơ cấu gắp
+
+```text
+ARDUINO MEGA 2560
+        |
+        v
+VAN DIEN TU 5/2
+        |
+        v
+XI LANH KHI NEN
+        |
+        v
+CO CAU GAP
+        |
+        v
+CAM BIEN HANH TRINH
+        |
+        +------> ARDUINO MEGA 2560
+```
+
+Chức năng:
+- Điều khiển van điện từ 5/2.
+- Điều khiển xi lanh khí nén thực hiện thao tác gắp và nhả.
+- Cảm biến hành trình xác nhận vị trí cơ cấu.
+- Arduino Mega xử lý tín hiệu phản hồi và điều khiển trình tự hoạt động.
 
 ---
 
-# 2. 🏗️ BR – Building Robot
+# 2. BR – BUILDING ROBOT
 
-BR đảm nhiệm:
+BR hoạt động tự động, sử dụng Camera 3D và LiDAR để nhận biết môi trường, định vị và lập kế hoạch di chuyển.
 
-* Nhận block từ TR.
-* Di chuyển giữa các tầng.
-* Xây dựng Tower.
-* Vận chuyển các vật thể theo luật thi đấu.
-* Điều khiển cơ cấu gắp và đặt.
-* Tự động định vị và di chuyển.
+Mini PC thực hiện xử lý dữ liệu cảm biến, ROS 2, SLAM, nhận dạng vật thể và điều hướng.
 
-BR sử dụng **Mini PC + STM32**.
+STM32F767ZIT6 nhận lệnh chuyển động qua Ethernet UDP và điều khiển các hệ thống chấp hành.
+
+## 2.1. Sơ đồ kiến trúc tổng thể
 
 ```text
-                  ┌──────────────┐
-                  │    Camera    │
-                  └──────┬───────┘
-                         │
-                  ┌──────▼───────┐
-                  │   Mini PC    │
-                  │              │
-                  │ ROS 2        │
-                  │ SLAM         │
-                  │ Nav2         │
-                  │ OpenCV       │
-                  │ YOLO / AI    │
-                  └──────┬───────┘
-                         │
-                     UART / USB
-                         │
-                  ┌──────▼───────┐
-                  │    STM32     │
-                  │              │
-                  │ PID          │
-                  │ Encoder      │
-                  │ Motor        │
-                  │ GPIO         │
-                  └──────┬───────┘
-                         │
-                    Motor Driver
-                         │
-                         ▼
-                       Motors
+             CAMERA 3D
+                  |
+                  |
+                LIDAR
+                  |
+                  v
+          MINI PC ASUS PN63-S1
+                  |
+          +-------+-------+
+          |               |
+          v               v
+       ROS 2           COMPUTER VISION
+          |               |
+          |               |
+          +-------+-------+
+                  |
+             MOTION COMMAND
+                  |
+                  v
+             ETHERNET UDP
+                  |
+                  v
+          STM32F767ZIT6
+                  |
+       +----------+-----------+
+       |          |           |
+       v          v           v
+    USART1     USART2      GPIO/PWM
+       |          |           |
+       v          v           v
+ HOVERBOARD  HOVERBOARD    TB6600
+   STM32F103   GD32F103       |
+       |          |           v
+       |          |       STEPPER MOTOR
+       |          |           |
+       v          v           v
+    2 BLDC     2 BLDC      LIFT SYSTEM
+    MOTORS     MOTORS
+       |          |
+       +-----+----+
+             |
+         4 WHEELS
+             |
+             v
+       HALL FEEDBACK
+
+          STM32F767ZIT6
+                  |
+                  v
+          VAN DIEN TU 5/2
+                  |
+                  v
+          XI LANH KHI NEN
+                  |
+                  v
+              CO CAU GAP
+                  |
+                  v
+          CAM BIEN HANH TRINH
 ```
+
+## 2.2. Hệ thống xử lý và nhận thức môi trường
+
+| Thành phần | Chức năng |
+|---|---|
+| Mini PC ASUS PN63-S1 | Máy tính xử lý trung tâm |
+| Camera 3D | Thu thập dữ liệu hình ảnh và chiều sâu |
+| LiDAR | Quét khoảng cách và xây dựng bản đồ môi trường |
+| ROS 2 | Hệ điều hành robot và quản lý các node |
+| SLAM | Định vị đồng thời xây dựng bản đồ |
+| Nav2 | Lập kế hoạch và điều hướng tự động |
+| Computer Vision | Nhận dạng và xác định vị trí vật thể |
+
+Các chức năng xử lý dự kiến:
+
+- Thu thập dữ liệu Camera 3D và LiDAR.
+- Xây dựng bản đồ môi trường bằng SLAM.
+- Định vị robot.
+- Nhận dạng các vật thể và vị trí thao tác.
+- Lập kế hoạch đường đi.
+- Tính toán vận tốc tuyến tính và vận tốc góc.
+- Gửi lệnh điều khiển đến STM32F767ZIT6.
+
+## 2.3. Hệ thống truyền thông Ethernet UDP
+
+```text
+MINI PC ASUS PN63-S1
+        |
+        | Ethernet
+        | UDP
+        v
+STM32F767ZIT6
+```
+
+Ethernet UDP được sử dụng để truyền lệnh điều khiển từ Mini PC đến STM32F767ZIT6.
+
+Thông tin truyền thông dự kiến:
+
+| Thông số | Cấu hình |
+|---|---|
+| Giao thức | UDP |
+| Giao tiếp vật lý | Ethernet |
+| Tốc độ Ethernet | 10/100 Mbps |
+| IP Mini PC | 192.168.1.20 |
+| IP STM32 | 192.168.1.100 |
+| UDP Port | 5000 (dự kiến) |
+| Tần số gửi lệnh | 100 Hz (mục tiêu) |
+
+*Các thông số IP và UDP Port cần thống nhất với firmware thực tế.*
+
+Các nội dung cần triển khai:
+- Cấu hình Ethernet và LwIP.
+- Nhận dữ liệu UDP trên STM32.
+- Kiểm tra checksum và số thứ tự gói tin.
+- Phát hiện mất kết nối.
+- Phản hồi trạng thái hệ thống.
+- Đưa robot về trạng thái an toàn khi mất lệnh điều khiển.
+
+## 2.4. Hệ thống truyền động bánh xe
+
+BR sử dụng 4 động cơ BLDC, được điều khiển bởi hai bo Hoverboard.
+
+```text
+                 STM32F767ZIT6
+                        |
+              +---------+---------+
+              |                   |
+           USART1               USART2
+              |                   |
+              v                   v
+        STM32F103RCT6        GD32F103RCT6
+        HOVERBOARD           HOVERBOARD
+              |                   |
+        +-----+-----+       +-----+-----+
+        |           |       |           |
+        v           v       v           v
+       BLDC        BLDC    BLDC        BLDC
+        FL          FR      RL          RR
+```
+
+Phân công điều khiển:
+
+| Bộ điều khiển | Động cơ | Vị trí |
+|---|---|---|
+| STM32F103RCT6 | 2 BLDC | Cầu trước: FL, FR |
+| GD32F103RCT6 | 2 BLDC | Cầu sau: RL, RR |
+
+Chức năng:
+- Nhận lệnh vận tốc từ STM32F767ZIT6 qua UART.
+- Điều khiển tốc độ và chiều quay động cơ BLDC.
+- Đọc tín hiệu Hall để xác định tốc độ và trạng thái động cơ.
+- Gửi dữ liệu phản hồi về STM32F767ZIT6.
+- Phối hợp điều khiển 4 bánh xe để robot di chuyển.
+
+## 2.5. Cơ cấu nâng hạ và leo cầu thang
+
+```text
+          STM32F767ZIT6
+                 |
+                 v
+              TB6600
+                 |
+                 v
+           STEPPER MOTOR
+                 |
+                 v
+          LIFT MECHANISM
+                 |
+                 v
+          LIMIT SENSORS
+                 |
+                 v
+          STM32F767ZIT6
+```
+
+Thành phần:
+
+| Thành phần | Chức năng |
+|---|---|
+| STM32F767ZIT6 | Điều khiển cơ cấu nâng hạ |
+| TB6600 | Driver điều khiển động cơ bước |
+| Stepper Motor | Tạo chuyển động nâng hạ |
+| Cơ cấu cơ khí | Nâng, hạ và hỗ trợ leo cầu thang |
+| Cảm biến hành trình | Xác nhận vị trí giới hạn |
+
+STM32F767ZIT6 phát tín hiệu STEP/DIR/ENA đến TB6600 để điều khiển động cơ bước.
+
+Cảm biến hành trình được sử dụng để xác định vị trí trên và dưới của cơ cấu, đồng thời hỗ trợ bảo vệ khi vượt quá giới hạn hành trình.
+
+## 2.6. Cơ cấu gắp
+
+```text
+          STM32F767ZIT6
+                 |
+                 v
+          VAN DIEN TU 5/2
+                 |
+                 v
+          XI LANH KHI NEN
+                 |
+                 v
+              CO CAU GAP
+                 |
+                 v
+          CAM BIEN HANH TRINH
+                 |
+                 v
+          STM32F767ZIT6
+```
+
+Chức năng:
+- Điều khiển van điện từ 5/2.
+- Điều khiển xi lanh khí nén.
+- Thực hiện thao tác gắp và nhả vật thể.
+- Đọc cảm biến hành trình để xác nhận trạng thái cơ cấu.
+- Phối hợp với chương trình tự động trên Mini PC.
 
 ---
 
-# 3. 🧠 Kiến trúc điều khiển
+# 3. COMMUNICATION ARCHITECTURE
 
-Project sử dụng kiến trúc **High-Level / Low-Level Control**.
-
-## High-Level
-
-High-Level chịu trách nhiệm:
-
-* Nhận biết môi trường.
-* Xử lý camera.
-* Point Cloud.
-* LiDAR.
-* SLAM.
-* Localization.
-* Navigation.
-* Path Planning.
-* AI / Object Detection.
-* Quyết định robot cần đi đâu.
-* Gửi command xuống STM32.
-
-Các thành phần chính:
-
-```text
-ROS 2
-SLAM
-Nav2
-RPLIDAR
-Orbbec Astra Pro
-OpenCV
-YOLO / CNN
-Mini PC
-```
+| Kết nối | Giao thức | Thiết bị |
+|---|---|---|
+| PS2 → Mini PC | USB | TR |
+| Mini PC → ESP32 | WiFi | TR |
+| ESP32 → Arduino Mega | UART | TR |
+| Mini PC → STM32F767 | Ethernet UDP | BR |
+| STM32F767 → Hoverboard F103 | USART1 | BR |
+| STM32F767 → Hoverboard GD32 | USART2 | BR |
+| STM32F767 → TB6600 | STEP/DIR/ENA | BR |
+| STM32 → Van điện từ | GPIO/Driver | TR & BR |
+| Encoder → Arduino Mega | Digital Interrupt | TR |
+| Hall → Hoverboard MCU | Hall Sensor | BR |
+| Limit Sensor → MCU | Digital Input | TR & BR |
 
 ---
 
-# 4. ⚡ Low-Level – STM32
+# 4. FEEDBACK & CONTROL SYSTEM
 
-STM32 chịu trách nhiệm toàn bộ phần điều khiển thời gian thực.
+Hệ thống sử dụng các loại cảm biến phản hồi để giám sát và điều khiển chuyển động.
 
-```text
-                STM32
-                  │
-      ┌───────────┼───────────┐
-      │           │           │
-   Encoder       PID        GPIO
-      │           │           │
-      └───────────┼───────────┘
-                  │
-                 PWM
-                  │
-                  ▼
-             Motor Driver
-                  │
-                  ▼
-                Motor
-```
-
-STM32 xử lý:
-
-* Encoder.
-* RPM.
-* PID tốc độ.
-* PID vị trí.
-* PWM.
-* Direction.
-* Motor control.
-* Odometry.
-* Limit switch.
-* Sensor.
-* Cơ cấu chấp hành.
-* Giao tiếp UART/CAN/USB.
-* Safety stop.
+| Cảm biến | Robot | Mục đích |
+|---|---|---|
+| Encoder | TR | Phản hồi tốc độ và vị trí bánh xe |
+| Hall Sensor | BR | Phản hồi trạng thái và tốc độ BLDC |
+| Limit Sensor | TR | Xác định vị trí cơ cấu gắp |
+| Limit Sensor | BR | Xác định vị trí cơ cấu nâng hạ và gắp |
+| Camera 3D | BR | Nhận biết vật thể và chiều sâu |
+| LiDAR | BR | Định vị và xây dựng bản đồ |
 
 ---
 
-# 5. 🔄 Luồng điều khiển
+# 5. SOFTWARE & DEVELOPMENT TOOLS
 
-Ví dụ BR:
-
-```text
-Camera + LiDAR
-       │
-       ▼
-     Mini PC
-       │
-       ├── SLAM
-       ├── Nav2
-       ├── Vision
-       └── Path Planning
-       │
-       ▼
- velocity command
-       │
-       ▼
-     STM32
-       │
-       ├── Calculate target RPM
-       ├── Read Encoder
-       ├── PID
-       └── Generate PWM
-       │
-       ▼
-   Motor Driver
-       │
-       ▼
-     Motors
-       │
-       ▼
-    Encoder
-       │
-       └──────────────► STM32
-```
-
-Điều này giúp ROS 2 không cần trực tiếp tạo PWM cho motor.
+| Công cụ | Mục đích |
+|---|---|
+| Arduino IDE | Lập trình Arduino Mega và ESP32 |
+| STM32CubeIDE | Phát triển firmware STM32 |
+| PlatformIO | Build firmware Hoverboard |
+| ROS 2 | Điều khiển robot tự động |
+| SLAM Toolbox | Xây dựng bản đồ |
+| Nav2 | Điều hướng tự động |
+| Python | Xử lý dữ liệu và Computer Vision |
+| OpenCV | Xử lý hình ảnh |
+| YOLO | Nhận dạng vật thể |
+| Git & GitHub | Quản lý mã nguồn |
+| CAD Software | Thiết kế cơ khí và lắp ráp |
 
 ---
 
-# 6. 📡 Communication
-
-Giao tiếp giữa High-Level và STM32 có thể sử dụng:
-
-```text
-Mini PC
-   │
-   │ UART / USB
-   ▼
-STM32
-```
-
-Dữ liệu từ Mini PC xuống STM32:
-
-```text
-CMD_VEL
-TARGET_RPM
-MOTOR_COMMAND
-ACTUATOR_COMMAND
-STOP
-MODE
-```
-
-Dữ liệu STM32 gửi lên:
-
-```text
-ENCODER
-RPM
-ODOMETRY
-MOTOR_STATUS
-BATTERY_STATUS
-ERROR
-LIMIT_SWITCH
-```
-
-Ví dụ packet:
-
-```text
-<VEL,0.8,0.0,0.0>
-```
-
-hoặc:
-
-```text
-<BR,VEL,0.8,0.0,0.0>
-```
-
-STM32 nhận command → tính tốc độ từng motor → PID → PWM.
-
----
-
-# 7. 🚗 Motor Control
-
-Hệ thống sử dụng motor DC có encoder.
-
-```text
-Target RPM
-    │
-    ▼
-   PID
-    │
-    ▼
-   PWM
-    │
-    ▼
-Motor Driver
-    │
-    ▼
- Motor
-    │
-    ▼
- Encoder
-    │
-    └──────────────► STM32
-```
-
-PID được sử dụng để đảm bảo:
-
-```text
-Target Speed ≈ Actual Speed
-```
-
-Ví dụ:
-
-```text
-Target RPM = 500
-
-Encoder
-   ↓
-Actual RPM = 480
-   ↓
-Error = 20
-   ↓
-PID
-   ↓
-Increase PWM
-```
-
----
-
-# 8. 🛞 Robot Drive
-
-Tùy robot, STM32 tính toán tốc độ cho từng bánh.
-
-Ví dụ robot mecanum:
-
-```text
-             FRONT
-
-       FL              FR
-        ○              ○
-         \            /
-          \          /
-           ROBOT
-          /          \
-         /            \
-        ○              ○
-       RL              RR
-
-              BACK
-```
-
-Với:
-
-```text
-Vx = forward velocity
-Vy = lateral velocity
-Wz = angular velocity
-```
-
-STM32 chuyển đổi:
-
-```text
-Vx + Vy + Wz
-       │
-       ▼
-Wheel Kinematics
-       │
-       ▼
-FL FR RL RR RPM
-       │
-       ▼
-PID
-       │
-       ▼
-PWM
-```
-
----
-
-# 9. 📷 Computer Vision
-
-BR sử dụng:
-
-```text
-Orbbec Astra Pro
-       │
-       ├── RGB
-       ├── Depth
-       └── Point Cloud
-              │
-              ▼
-            Mini PC
-              │
-       ┌──────┴───────┐
-       │              │
-     OpenCV          YOLO
-       │              │
-       └──────┬───────┘
-              ▼
-       Object Detection
-```
-
-Các đối tượng cần nhận biết có thể bao gồm:
-
-* Block.
-* Stair.
-* Tower.
-* Khu vực đặt vật.
-* Vật thể trên sân.
-
----
-
-# 10. 📡 LiDAR
-
-BR sử dụng:
-
-```text
-RPLIDAR A1M8
-      │
-      ▼
-   Mini PC
-      │
-      ▼
-   ROS 2
-      │
-      ▼
-    /scan
-      │
-      ▼
-     SLAM
-```
-
-LiDAR chủ yếu phục vụ:
-
-* Mapping.
-* Localization.
-* Obstacle detection.
-* Navigation.
-
----
-
-# 11. 🗺️ SLAM
-
-BR sử dụng ROS 2 để xây dựng bản đồ.
-
-```text
-RPLIDAR
-   │
-   ▼
- /scan
-   │
-   ▼
- SLAM
-   │
-   ├── Map
-   └── Pose
-        │
-        ▼
-       Nav2
-```
-
-Kết hợp:
-
-```text
-LiDAR
-  +
-Odometry
-  +
-TF
-  ↓
-SLAM
-  ↓
-Map + Robot Pose
-```
-
----
-
-# 12. 🧭 Navigation
-
-Navigation của BR:
-
-```text
-        Map
-         │
-         ▼
-       Nav2
-         │
-   ┌─────┴─────┐
-   │           │
-Planner     Controller
-   │           │
-   └─────┬─────┘
-         ▼
-      cmd_vel
-         │
-         ▼
-       STM32
-         │
-         ▼
-       Motors
-```
-
-Nav2 quyết định robot cần di chuyển như thế nào.
-
-STM32 quyết định motor phải quay như thế nào.
-
----
-
-# 13. 🔧 ROS 2 Architecture
-
-BR:
-
-```text
-                    ROS 2
-                      │
-       ┌──────────────┼──────────────┐
-       │              │              │
-    Camera          LiDAR          Nav2
-       │              │              │
-       ▼              ▼              │
-   PointCloud       /scan            │
-       │              │              │
-       └───────┬──────┘              │
-               ▼                     │
-              SLAM                   │
-               │                     │
-               ▼                     │
-              TF                     │
-               │                     │
-               └──────────┬──────────┘
-                          ▼
-                       cmd_vel
-                          │
-                          ▼
-                        STM32
-```
-
----
-
-# 14. 📁 Repository Structure
-
-Đề xuất cấu trúc:
+# 6. REPOSITORY STRUCTURE
 
 ```text
 Robocon2027/
@@ -559,496 +396,82 @@ Robocon2027/
 ├── README.md
 │
 ├── TR/
-│   ├── README.md
-│   ├── STM32/
-│   │   ├── Core/
-│   │   ├── Drivers/
-│   │   ├── Motor/
-│   │   ├── Encoder/
-│   │   ├── PID/
-│   │   └── Communication/
-│   │
 │   ├── CAD/
-│   └── Documentation/
+│   │
+│   ├── Code/
+│   │   ├── ESP32/
+│   │   └── ArduinoMega2560/
+│   │       └── Arduinomega2560.ino
+│   │
+│   ├── Electronics/
+│   ├── Mechanical/
+│   └── Documents/
 │
 ├── BR/
-│   ├── README.md
+│   ├── CAD/
 │   │
-│   ├── STM32/
-│   │   ├── Core/
-│   │   ├── Drivers/
-│   │   ├── Motor/
-│   │   ├── Encoder/
-│   │   ├── PID/
-│   │   └── Communication/
+│   ├── Code/
+│   │   ├── MiniPC/
+│   │   │   ├── br_navigation/
+│   │   │   ├── br_slam/
+│   │   │   └── computer_vision/
+│   │   │
+│   │   ├── STM32F767/
+│   │   │
+│   │   ├── Hoverboard_STM32F103/
+│   │   │
+│   │   └── Hoverboard_GD32F103/
 │   │
-│   ├── ROS2/
-│   │   ├── src/
-│   │   ├── launch/
-│   │   ├── config/
-│   │   ├── worlds/
-│   │   └── models/
-│   │
-│   ├── Vision/
-│   ├── SLAM/
-│   ├── Nav2/
-│   └── CAD/
+│   ├── Electronics/
+│   ├── Mechanical/
+│   └── Documents/
 │
-├── simulation/
-│   └── Gazebo/
-│
-├── docs/
-│
-└── scripts/
+└── Documents/
+    ├── Rulebook/
+    ├── Strategy/
+    ├── System_Architecture/
+    └── Reports/
 ```
 
 ---
 
-# 15. 🧪 Simulation
+# 7. DEVELOPMENT OBJECTIVES
 
-Trước khi chạy robot thật, hệ thống được kiểm thử trên Gazebo.
-
-```text
-Gazebo
-   │
-   ├── Robot Model
-   ├── Motors
-   ├── Wheels
-   ├── Sensors
-   ├── LiDAR
-   └── Camera
-        │
-        ▼
-      ROS 2
-        │
-        ├── SLAM
-        └── Nav2
-```
-
-Simulation giúp kiểm tra:
-
-* Kinematics.
-* TF.
-* Odometry.
-* SLAM.
-* Navigation.
-* Sensor.
-* Robot model.
-* Controller.
-
-STM32 thật sẽ được tích hợp sau khi logic điều khiển được kiểm chứng.
-
----
-
-# 16. 🔌 Hardware Architecture
-
-## TR
-
-```text
-Battery
-  │
-  ├──────────────► Motor Driver
-  │                    │
-  │                    ▼
-  │                  Motors
-  │                    │
-  │                 Encoder
-  │                    │
-  │                    ▼
-  │                  STM32
-  │
-  └──────────────► DC/DC
-                       │
-                       ▼
-                     STM32
-```
-
-## BR
-
-```text
-Battery
-  │
-  ├──────────────► Motor Driver
-  │                    │
-  │                    ▼
-  │                  Motors
-  │                    │
-  │                 Encoder
-  │                    │
-  │                    ▼
-  │                  STM32
-  │
-  └──────────────► DC/DC
-                       │
-                       ├── STM32
-                       └── Mini PC
-
-Camera ───────────────► Mini PC
-RPLIDAR ──────────────► Mini PC
-
-Mini PC ◄─────────────► STM32
-```
-
----
-
-# 17. 🛡️ Safety
-
-STM32 phải có cơ chế dừng độc lập.
-
-```text
-STOP command
-     │
-     ▼
-   STM32
-     │
-     ├── PWM = 0
-     ├── Motor OFF
-     └── Actuator SAFE
-```
-
-Các điều kiện dừng:
-
-* Emergency stop.
-* Mất communication.
-* Encoder lỗi.
-* Motor lỗi.
-* Điện áp thấp.
-* Quá dòng.
-* Timeout command.
-
-Ví dụ:
-
-```text
-if communication_timeout:
-    motor_pwm = 0
-```
-
----
-
-# 18. 🔋 Power System
-
-Nguồn được chia thành:
-
-```text
-Battery
-   │
-   ├── Motor Power
-   │
-   └── DC/DC
-          │
-          ├── STM32
-          ├── Sensors
-          └── Mini PC
-```
-
-Không cấp nguồn motor trực tiếp từ STM32.
-
-STM32 chỉ điều khiển:
-
-```text
-PWM
-DIR
-ENABLE
-```
-
-Motor Driver chịu trách nhiệm công suất.
-
----
-
-# 19. 💻 Development Environment
-
-## STM32
-
-Có thể sử dụng:
-
-* STM32CubeIDE
-* STM32CubeMX
-* STM32 HAL
-* ARM GCC
-* ST-LINK
-
-## ROS 2
-
-BR sử dụng:
-
-```text
-Ubuntu
-ROS 2
-Gazebo
-SLAM
-Nav2
-OpenCV
-YOLO
-```
-
-## Version Control
-
-```text
-Git
-GitHub
-```
-
-Repository:
-
-```text
-Robocon2027
-```
-
----
-
-# 20. 🔄 Development Workflow
-
-Quy trình phát triển:
-
-```text
-Mechanical Design
-       ↓
-Motor Test
-       ↓
-Encoder Test
-       ↓
-STM32 PWM
-       ↓
-PID
-       ↓
-Communication
-       ↓
-Odometry
-       ↓
-ROS 2
-       ↓
-SLAM
-       ↓
-Nav2
-       ↓
-Vision
-       ↓
-Integration
-       ↓
-Robot Test
-```
-
----
-
-# 21. 🧪 Testing Levels
-
-## Level 1 – Motor
-
-```text
-STM32
- ↓
-PWM
- ↓
-Motor
-```
-
-## Level 2 – Encoder
-
-```text
-Motor
- ↓
-Encoder
- ↓
-STM32
- ↓
-RPM
-```
-
-## Level 3 – PID
-
-```text
-Target RPM
- ↓
-PID
- ↓
-PWM
- ↓
-Motor
- ↓
-Encoder
- ↓
-Feedback
-```
-
-## Level 4 – Communication
-
-```text
-PC
- ↓
-UART
- ↓
-STM32
- ↓
-Motor
-```
-
-## Level 5 – ROS 2
-
-```text
-ROS 2
- ↓
-cmd_vel
- ↓
-STM32
- ↓
-Motor
-```
-
-## Level 6 – Full Robot
-
-```text
-Camera
-   +
-LiDAR
-   +
-ROS 2
-   +
-SLAM
-   +
-Nav2
-   +
-STM32
-   +
-Motor
-```
-
----
-
-# 22. 🎯 Main Objective
-
-Mục tiêu cuối cùng của hệ thống:
-
-```text
-                 ABU ROBOCON 2027
-                         │
-             ┌───────────┴───────────┐
-             │                       │
-             ▼                       ▼
-            TR                      BR
-             │                       │
-          STM32              Mini PC + STM32
-             │                       │
-        Motor Control        ROS 2 + AI + SLAM
-             │                       │
-             └───────────┬───────────┘
-                         │
-                         ▼
-                  AUTONOMOUS ROBOT
-```
-
-Kiến trúc được thiết kế theo nguyên tắc:
-
-> **Mini PC/ROS 2 quyết định robot phải làm gì, STM32 quyết định motor phải làm như thế nào.**
-
-STM32 là tầng **real-time control**, còn ROS 2/Mini PC là tầng **high-level intelligence**.
-
----
-
-# 23. 📌 Project Status
+Các mục tiêu phát triển chính của dự án:
 
 ### TR
-
-* [x] Thiết kế kiến trúc STM32
-* [ ] Motor control
-* [ ] Encoder
-* [ ] PID
-* [ ] Communication
-* [ ] Odometry
-* [ ] Cơ cấu chấp hành
-* [ ] Full robot integration
+- Hoàn thiện điều khiển bằng tay cầm PS2.
+- Truyền dữ liệu điều khiển qua WiFi.
+- Điều khiển 4 động cơ DC bằng IBT-2.
+- Phản hồi encoder và kiểm soát chuyển động.
+- Hoàn thiện cơ cấu gắp khí nén.
 
 ### BR
-
-* [x] Mini PC architecture
-* [x] Camera
-* [x] RPLIDAR
-* [x] ROS 2
-* [ ] STM32 motor control
-* [ ] Encoder
-* [ ] PID
-* [ ] UART/USB communication
-* [ ] Odometry
-* [ ] SLAM
-* [ ] Nav2
-* [ ] Vision
-* [ ] YOLO
-* [ ] Full robot integration
-
-### Simulation
-
-* [x] Gazebo
-* [x] Robot model
-* [ ] Complete sensor simulation
-* [ ] SLAM
-* [ ] Nav2
-* [ ] Full autonomous test
+- Hoàn thiện hệ thống Camera 3D và LiDAR.
+- Triển khai SLAM và Navigation bằng ROS 2.
+- Hoàn thiện truyền thông Ethernet UDP giữa Mini PC và STM32F767.
+- Điều khiển 4 động cơ BLDC bằng hai bo Hoverboard.
+- Hoàn thiện cơ cấu nâng hạ, leo cầu thang.
+- Hoàn thiện cơ cấu gắp khí nén.
+- Đồng bộ điều khiển chuyển động và các cơ cấu tự động.
 
 ---
 
-# 24. 🚀 Final Architecture
+# 8. PROJECT STATUS
 
-```text
-                         ROBOT SYSTEM
-                              │
-             ┌────────────────┴────────────────┐
-             │                                 │
-             ▼                                 ▼
-             TR                                BR
-             │                                 │
-        Controller                          Mini PC
-             │                                 │
-             ▼                           ┌─────┼─────┐
-          STM32                           │     │     │
-             │                          Camera LiDAR ROS2
-             │                           │     │     │
-             │                           └──┬──┴──┬──┘
-             │                              │     │
-             │                            SLAM  Nav2
-             │                              │     │
-             │                              └──┬──┘
-             │                                 │
-             │                            cmd_vel
-             │                                 │
-             │                                 ▼
-             │                              STM32
-             │                                 │
-             └──────────────┐          ┌───────┘
-                            ▼          ▼
-                         PID + Encoder
-                              │
-                              ▼
-                        Motor Drivers
-                              │
-                              ▼
-                            Motors
-```
+Repository được cập nhật trong quá trình thiết kế, chế tạo, lập trình, thử nghiệm và hoàn thiện hai robot TR và BR.
 
-## Core Principle
+Các nội dung cập nhật bao gồm:
+- Mechanical Design.
+- Electrical & Electronics.
+- Embedded Firmware.
+- ROS 2 & Navigation.
+- Communication Protocol.
+- Sensor Feedback.
+- System Integration.
+- Testing & Optimization.
 
-```text
-HIGH LEVEL
-───────────
-ROS 2
-SLAM
-Nav2
-Vision
-AI
-Planning
+---
 
-        ↓ command
-
-LOW LEVEL
-──────────
-STM32
-Encoder
-PID
-PWM
-Motor
-Actuator
-
-        ↓
-
-PHYSICAL ROBOT
-```
-
-**STM32 không thay thế ROS 2/Mini PC và ROS 2/Mini PC cũng không thay thế STM32. Hai tầng phối hợp với nhau để tạo thành hệ thống robot hoàn chỉnh.**
+**ABU ROBOCON 2027 – TR & BR**  
+*Mechanical Design | Embedded Systems | Robotics | Autonomous Navigation*
